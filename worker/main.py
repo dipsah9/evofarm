@@ -1,41 +1,47 @@
 import json
-import time
 import random
 import math
 from typing import List, Tuple
 import redis
 import os
-from dataclasses import dataclass, asdict
 
 # ============ NEUROEVOLUTION ENGINE ============
+
+WEIGHT_COUNT = 17
 
 class NeuralNetwork:
     """A simple feedforward neural network"""
     def __init__(self, weights: List[float]):
+        if len(weights) != WEIGHT_COUNT:
+            raise ValueError(f"Expected {WEIGHT_COUNT} weights, got {len(weights)}")
         self.weights = weights
         
     def forward(self, inputs: List[float]) -> List[float]:
-        """Simple 2-layer network: inputs -> hidden -> outputs"""
-        # Layer 1: 2 inputs -> 4 hidden neurons
-        w1 = self.weights[0:8]  # 2*4 = 8 weights
+        """Evaluate a 2-input, 4-hidden-neuron, 1-output network."""
+        if len(inputs) != 2:
+            raise ValueError(f"Expected 2 inputs, got {len(inputs)}")
+
+        # Layout: 8 input weights, 4 hidden biases, 4 output weights, 1 output bias.
+        w1 = self.weights[0:8]
+        hidden_biases = self.weights[8:12]
         hidden = [
-            math.tanh(w1[0]*inputs[0] + w1[1]*inputs[1] + w1[4]),
-            math.tanh(w1[2]*inputs[0] + w1[3]*inputs[1] + w1[5]),
-            math.tanh(w1[4]*inputs[0] + w1[5]*inputs[1] + w1[6]),
-            math.tanh(w1[6]*inputs[0] + w1[7]*inputs[1] + w1[7])
+            math.tanh(w1[0] * inputs[0] + w1[1] * inputs[1] + hidden_biases[0]),
+            math.tanh(w1[2] * inputs[0] + w1[3] * inputs[1] + hidden_biases[1]),
+            math.tanh(w1[4] * inputs[0] + w1[5] * inputs[1] + hidden_biases[2]),
+            math.tanh(w1[6] * inputs[0] + w1[7] * inputs[1] + hidden_biases[3]),
         ]
         
-        # Layer 2: 4 hidden -> 1 output
-        w2 = self.weights[8:13]  # 4*1 + 1 bias = 5 weights
+        w2 = self.weights[12:16]
+        output_bias = self.weights[16]
         output = math.tanh(
-            w2[0]*hidden[0] + w2[1]*hidden[1] + 
-            w2[2]*hidden[2] + w2[3]*hidden[3] + w2[4]
+            w2[0] * hidden[0] + w2[1] * hidden[1] +
+            w2[2] * hidden[2] + w2[3] * hidden[3] + output_bias
         )
         return [output]
 
 def create_random_weights() -> List[float]:
-    """Create random weights for a 2-4-1 network (17    wa weights total)"""
-    return [random.uniform(-1, 1) for _ in range(17)]
+    """Create random weights for a 2-4-1 network."""
+    return [random.uniform(-1, 1) for _ in range(WEIGHT_COUNT)]
 
 def fitness_xor(weights: List[float]) -> float:
     """Fitness function: how well does the network solve XOR?"""

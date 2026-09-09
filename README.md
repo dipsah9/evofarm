@@ -82,7 +82,7 @@ Example completed response:
 	"status": "completed",
 	"best_fitness": 0.91,
 	"progress": 1,
-	"best_individual": [0.12, -0.34],
+	"best_individual": [0.12, -0.34, 0.56, -0.78, 0.11, 0.22, -0.33, 0.44, -0.55, 0.66, -0.77, 0.88, 0.19, -0.29, 0.39, -0.49, 0.59],
 	"error": ""
 }
 ```
@@ -115,6 +115,13 @@ python3 test_xor.py
 ```
 
 This prints the model output and binary prediction for each row in the XOR truth table.
+
+The network uses 17 parameters:
+
+- 8 input-to-hidden weights for the 2-4 layer
+- 4 hidden-layer biases
+- 4 hidden-to-output weights for the 4-1 layer
+- 1 output bias
 
 ## API Reference
 
