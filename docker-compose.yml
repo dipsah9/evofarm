@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # Redis for job queue and state storage
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+
+  # API Gateway (Go)
+  api:
+    build: ./api
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+    environment:
+      - REDIS_ADDR=redis:6379
+    restart: unless-stopped
+
+  # Worker (Python)
+  worker:
+    build: ./worker
+    depends_on:
+      - redis
+    environment:
+      - REDIS_ADDR=redis:6379
+    restart: unless-stopped
+    deploy:
+      replicas: 2  # Run 2 workers for parallel evolution
