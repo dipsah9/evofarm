@@ -74,7 +74,7 @@ function App() {
         {/* Left Column: Submit Form + Job List */}
         <div className="sidebar">
           <div className="card">
-            <h2>🚀 Submit Job</h2>
+            <h2>Submit Job</h2>
             <form onSubmit={submitJob}>
               <div className="form-group">
                 <label>Population Size</label>
@@ -108,7 +108,7 @@ function App() {
                 </select>
               </div>
               <button type="submit" disabled={loading}>
-                {loading ? 'Submitting...' : '🚀 Start Evolution'}
+                {loading ? 'Submitting...' : ' Start Evolution'}
               </button>
             </form>
           </div>
@@ -315,7 +315,13 @@ function JobDetail({ jobId }) {
     scales: {
       x: {
         grid: { color: '#1a1f35' },
-        ticks: { color: '#8892b0' }
+        ticks: {
+          color: '#8892b0',
+          maxRotation: 45,
+          minRotation: 45,
+          autoSkip: true,
+          maxTicksLimit: 15
+        }
       },
       y: {
         min: 0,
