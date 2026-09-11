@@ -158,20 +158,30 @@ def process_job(job_id: str):
     try:
         # Run evolution
         best_individual, best_fitness = None, 0.0
+        history = []  # <-- NEW: track fitness per generation
         
         for progress, fitness, individual in evolve(population_size, generations):
             best_individual = individual
             best_fitness = fitness
+
+            history.append({
+                "generation": len(history) + 1,
+                "fitness": fitness
+            })
             
             # Update progress in Redis
             r.hset(f"job:{job_id}", "progress", progress)
             r.hset(f"job:{job_id}", "best_fitness", fitness)
+            r.hset(f"job:{job_id}", "history", json.dumps(history))
         
         # Job complete!
         r.hset(f"job:{job_id}", "status", "completed")
         r.hset(f"job:{job_id}", "best_fitness", best_fitness)
         r.hset(f"job:{job_id}", "best_individual", json.dumps(best_individual))
         r.hset(f"job:{job_id}", "progress", 1.0)
+
+        r.hset(f"job:{job_id}", "history", json.dumps(history))
+        r.hset(f"job:{job_id}", "total_generations", len(history))
         
         print(f"Job {job_id} complete! Best fitness: {best_fitness:.4f}")
         

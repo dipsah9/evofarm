@@ -1,14 +1,13 @@
 version: '3.8'
 
 services:
-  # Redis for job queue and state storage
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
     command: redis-server --appendonly yes
+    restart: unless-stopped
 
-  # API Gateway (Go)
   api:
     build: ./api
     ports:
@@ -19,7 +18,6 @@ services:
       - REDIS_ADDR=redis:6379
     restart: unless-stopped
 
-  # Worker (Python)
   worker:
     build: ./worker
     depends_on:
@@ -28,4 +26,14 @@ services:
       - REDIS_ADDR=redis:6379
     restart: unless-stopped
     deploy:
-      replicas: 2  # Run 2 workers for parallel evolution
+      replicas: 2
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+    restart: unless-stopped

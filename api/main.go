@@ -14,6 +14,25 @@ import (
     "github.com/gorilla/mux"
 )
 
+
+func corsMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // Allow requests from any origin (for development)
+        w.Header().Set("Access-Control-Allow-Origin", "*")
+        w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+        w.Header().Set("Access-Control-Max-Age", "3600")
+
+        // Handle preflight OPTIONS request
+        if r.Method == http.MethodOptions {
+            w.WriteHeader(http.StatusOK)
+            return
+        }
+
+        next.ServeHTTP(w, r)
+    })
+}
+
 var ctx = context.Background()
 var rdb *redis.Client
 
@@ -51,7 +70,7 @@ func main() {
     r.HandleFunc("/health", healthCheck).Methods("GET")
 
     log.Println("API listening on :8080")
-    log.Fatal(http.ListenAndServe(":8080", r))
+	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(r)))
 }
 
 func submitJob(w http.ResponseWriter, r *http.Request) {
@@ -118,7 +137,6 @@ func getJobStatus(w http.ResponseWriter, r *http.Request) {
     vars := mux.Vars(r)
     jobID := vars["id"]
 
-    // Get job data from Redis
     data, err := rdb.HGetAll(ctx, "job:"+jobID).Result()
     if err != nil || len(data) == 0 {
         http.Error(w, "Job not found", http.StatusNotFound)
@@ -127,25 +145,32 @@ func getJobStatus(w http.ResponseWriter, r *http.Request) {
 
     bestFitness, _ := strconv.ParseFloat(data["best_fitness"], 64)
     progress, _ := strconv.ParseFloat(data["progress"], 64)
+    totalGenerations, _ := strconv.Atoi(data["total_generations"])
 
-    job := JobStatus{
-        JobID:         jobID,
-        Status:        data["status"],
-        BestFitness:   bestFitness,
-        Progress:      progress,
-        BestIndividual: []float64{},
-        Error:         data["error"],
+    // Parse history
+    var history []map[string]interface{}
+    if data["history"] != "" {
+        json.Unmarshal([]byte(data["history"]), &history)
     }
 
-    // Parse best_individual if it exists and job is completed
+    var bestIndividual []float64
     if data["best_individual"] != "" && data["best_individual"] != "[]" {
-        var weights []float64
-        json.Unmarshal([]byte(data["best_individual"]), &weights)
-        job.BestIndividual = weights
+        json.Unmarshal([]byte(data["best_individual"]), &bestIndividual)
+    }
+
+    response := map[string]interface{}{
+        "job_id":           jobID,
+        "status":           data["status"],
+        "best_fitness":     bestFitness,
+        "progress":         progress,
+        "best_individual":  bestIndividual,
+        "history":          history,
+        "total_generations": totalGenerations,
+        "error":            data["error"],
     }
 
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(job)
+    json.NewEncoder(w).Encode(response)
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
