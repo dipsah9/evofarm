@@ -158,9 +158,24 @@ func getJobStatus(w http.ResponseWriter, r *http.Request) {
         json.Unmarshal([]byte(data["history"]), &history)
     }
 
-    var bestIndividual []float64
-    if data["best_individual"] != "" && data["best_individual"] != "[]" {
-        json.Unmarshal([]byte(data["best_individual"]), &bestIndividual)
+    var bestIndividual interface{}
+	if data["best_individual"] != "" && data["best_individual"] != "[]" {
+		if err := json.Unmarshal([]byte(data["best_individual"]), &bestIndividual); err != nil {
+			log.Printf("Warning: could not parse best_individual: %v", err)
+			bestIndividual = []interface{}{}
+		}
+	} else {
+		bestIndividual = []interface{}{}
+	}
+
+    // Parse result metadata if present.
+    var resultMeta interface{}
+    if data["result_meta"] != "" {
+        if err := json.Unmarshal([]byte(data["result_meta"]), &resultMeta); err != nil {
+            resultMeta = map[string]interface{}{}
+        }
+    } else {
+        resultMeta = map[string]interface{}{}
     }
 
     response := map[string]interface{}{
@@ -171,6 +186,7 @@ func getJobStatus(w http.ResponseWriter, r *http.Request) {
         "best_individual":  bestIndividual,
         "history":          history,
         "total_generations": totalGenerations,
+        "result_meta":      resultMeta,
         "error":            data["error"],
     }
 

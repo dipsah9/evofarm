@@ -9,12 +9,14 @@ import json
 import os
 import sys
 import traceback
+import time
 
 import redis
 
 # Local imports
 from solvers import evolution
 from environments import xor as xor_env
+from solvers import cpsat
 
 
 # ---------- Redis helpers ----------
@@ -76,11 +78,81 @@ def run_evolution(r: redis.Redis, job_id: str, job: dict) -> None:
         "total_generations": len(history),
     })
 
+def run_cpsat(r: redis.Redis, job_id: str, job: dict) -> None:
+    """Run a CP-SAT constraint job and stream results to Redis."""
+    problem_name = job.get("problem", "nurse_rostering")
+    time_limit = float(job.get("time_limit_seconds", 30))
+    
+    if problem_name not in cpsat.PROBLEMS:
+        raise ValueError(f"Unknown problem: {problem_name}")
+    
+    # Parse config (comes as JSON string from Redis)
+    config_raw = job.get("config", "{}")
+    if isinstance(config_raw, str):
+        config = json.loads(config_raw) if config_raw else {}
+    else:
+        config = config_raw
+    
+    # Fill in defaults
+    problem_module = cpsat.PROBLEMS[problem_name]
+    defaults = problem_module.default_config()
+    defaults.update(config)
+    config = defaults
+    
+    print(f"  -> CP-SAT solver | problem={problem_name} | "
+          f"time_limit={time_limit}s")
+    print(f"     config: {config}")
+    
+    # Progress callback — CP-SAT is coarse-grained
+    def on_progress(fraction: float) -> None:
+        r.hset(f"job:{job_id}", "progress", fraction)
+    
+    # Record start
+    start = time.time()
+    r.hset(f"job:{job_id}", mapping={
+        "progress": 0.1,
+        "history": json.dumps([]),
+    })
+    
+    # Solve
+    result = cpsat.solve_nurse_rostering(
+        config=config,
+        time_limit_seconds=time_limit,
+        on_progress=on_progress,
+    )
+    
+    elapsed = time.time() - start
+    print(f"     status={result['status']} | "
+          f"objective={result['objective_value']:.2f} | "
+          f"time={elapsed:.2f}s")
+    
+    # Write final result
+    r.hset(f"job:{job_id}", mapping={
+        "status": "completed",
+        "progress": 1.0,
+        "best_fitness": result["objective_value"],
+        "best_individual": json.dumps(result["schedule"]),
+        "history": json.dumps([{
+            "generation": 1,
+            "fitness": result["objective_value"],
+        }]),
+        "total_generations": 1,
+        "result_meta": json.dumps({
+            "solver": "cpsat",
+            "problem": problem_name,
+            "status": result["status"],
+            "solve_time_seconds": result["solve_time_seconds"],
+            "num_nurses": result["num_nurses"],
+            "num_days": result["num_days"],
+        }),
+    })
+
 
 # ---------- Dispatch table ----------
 
 SOLVERS = {
     "evolution": run_evolution,
+    "cpsat": run_cpsat,
     # "cpsat": run_cpsat,   # <-- Day 2
 }
 
