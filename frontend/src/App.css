@@ -416,3 +416,35 @@ button:disabled {
 ::-webkit-scrollbar-thumb:hover {
   background: #2a3055;
 }
+
+.detail-header-right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.solver-badge {
+  font-size: 11px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.solver-evolution {
+  background: rgba(102, 126, 234, 0.18);
+  color: #8fa4ff;
+}
+
+.solver-cpsat {
+  background: rgba(118, 75, 162, 0.22);
+  color: #b794f6;
+}
+
+.section-subtitle {
+  color: #8892b0;
+  font-weight: 400;
+  font-size: 12px;
+}

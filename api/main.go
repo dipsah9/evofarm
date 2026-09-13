@@ -41,6 +41,8 @@ type JobRequest struct {
     Generations    int    `json:"generations"`
     FitnessFunction string `json:"fitness_function"`
     SolverType      string `json:"solver_type"`
+    Problem         string  `json:"problem"`
+    TimeLimitSeconds float64 `json:"time_limit_seconds"`
 }
 
 type JobStatus struct {
@@ -94,6 +96,12 @@ func submitJob(w http.ResponseWriter, r *http.Request) {
     if req.SolverType == "" {
         req.SolverType = "evolution"
     }
+    if req.Problem == "" {
+        req.Problem = "nurse_rostering"
+    }
+    if req.TimeLimitSeconds == 0 {
+        req.TimeLimitSeconds = 30
+    }
 
     // Generate unique job ID
     bytes := make([]byte, 16)
@@ -117,6 +125,8 @@ func submitJob(w http.ResponseWriter, r *http.Request) {
         "generations":     req.Generations,
         "fitness_function": req.FitnessFunction,
         "solver_type":      req.SolverType,
+        "problem":          req.Problem,
+        "time_limit_seconds": req.TimeLimitSeconds,
         "best_individual": "[]",
         "error":           "",
     }

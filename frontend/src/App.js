@@ -13,6 +13,7 @@ import {
   Filler
 } from 'chart.js';
 import './App.css';
+import ScheduleGrid from './ScheduleGrid';
 
 // Register Chart.js components
 ChartJS.register(
@@ -35,7 +36,10 @@ function App() {
   const [formData, setFormData] = useState({
     population_size: 100,
     generations: 50,
-    fitness_function: 'xor'
+    fitness_function: 'xor',
+    solver_type: 'evolution',
+    problem: 'nurse_rostering',
+    time_limit_seconds: 30
   });
 
   // Submit a new job
@@ -99,6 +103,41 @@ function App() {
                 />
               </div>
               <div className="form-group">
+                <label>Solver Type</label>
+                <select
+                  value={formData.solver_type}
+                  onChange={(e) => setFormData({...formData, solver_type: e.target.value})}
+                >
+                  <option value="evolution">Evolution</option>
+                  <option value="cpsat">CP-SAT</option>
+                </select>
+              </div>
+              {formData.solver_type === 'cpsat' && (
+                <>
+                  <div className="form-group">
+                    <label>CP-SAT Problem</label>
+                    <select
+                      value={formData.problem}
+                      onChange={(e) => setFormData({...formData, problem: e.target.value})}
+                    >
+                      <option value="nurse_rostering">Nurse Rostering</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Time Limit (seconds)</label>
+                    <input
+                      type="number"
+                      value={formData.time_limit_seconds}
+                      onChange={(e) => setFormData({...formData, time_limit_seconds: parseFloat(e.target.value)})}
+                      min="1"
+                      max="300"
+                      step="1"
+                      required
+                    />
+                  </div>
+                </>
+              )}
+              <div className="form-group">
                 <label>Fitness Function</label>
                 <select
                   value={formData.fitness_function}
@@ -108,7 +147,7 @@ function App() {
                 </select>
               </div>
               <button type="submit" disabled={loading}>
-                {loading ? 'Submitting...' : ' Start Evolution'}
+                {loading ? 'Submitting...' : ' Start Job'}
               </button>
             </form>
           </div>
@@ -212,19 +251,19 @@ function JobListItem({ jobId, initialStatus, isSelected, onClick }) {
   );
 }
 
-// Detailed view with chart
 function JobDetail({ jobId }) {
   const [job, setJob] = useState({
     status: 'pending',
     progress: 0,
     best_fitness: 0,
     best_individual: [],
-    error: ''
+    error: '',
+    total_generations: 0,
+    result_meta: {}
   });
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
-    // Reset history when job changes
     setHistory([]);
 
     const fetchJobStatus = async () => {
@@ -237,24 +276,13 @@ function JobDetail({ jobId }) {
           progress: data.progress || 0,
           best_fitness: data.best_fitness || 0,
           best_individual: data.best_individual || [],
-          error: data.error || ''
+          error: data.error || '',
+          total_generations: data.total_generations || 0,
+          result_meta: data.result_meta || {}
         });
 
         if (data.history && data.history.length > 0) {
-        setHistory(data.history);
-        }
-
-        // Track fitness history when the API does not provide historical data.
-        if (data.best_fitness > 0 && data.status === 'running') {
-          setHistory(prev => {
-            if (prev.length > 0 && prev[prev.length - 1].fitness === data.best_fitness) {
-              return prev;
-            }
-            return [...prev, {
-              generation: prev.length + 1,
-              fitness: data.best_fitness
-            }];
-          });
+          setHistory(data.history);
         }
       } catch (error) {
         console.error('Error fetching job:', error);
@@ -269,39 +297,38 @@ function JobDetail({ jobId }) {
   const getStatusColor = () => {
     switch (job.status) {
       case 'completed': return 'status-completed';
-      case 'running': return 'status-running';
-      case 'failed': return 'status-failed';
-      default: return 'status-pending';
+      case 'running':   return 'status-running';
+      case 'failed':    return 'status-failed';
+      default:          return 'status-pending';
     }
   };
 
-  // Chart data
+  const isCPSAT = job.result_meta && job.result_meta.solver === 'cpsat';
+  const isEvolution = !isCPSAT;
+
+  // ---------- Chart data (evolution only) ----------
   const chartData = {
     labels: history.map(h => `Gen ${h.generation}`),
-    datasets: [
-      {
-        label: 'Best Fitness',
-        data: history.map(h => h.fitness),
-        borderColor: '#667eea',
-        backgroundColor: 'rgba(102, 126, 234, 0.15)',
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: '#764ba2',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 6
-      }
-    ]
+    datasets: [{
+      label: 'Best Fitness',
+      data: history.map(h => h.fitness),
+      borderColor: '#667eea',
+      backgroundColor: 'rgba(102, 126, 234, 0.15)',
+      fill: true,
+      tension: 0.4,
+      pointBackgroundColor: '#764ba2',
+      pointBorderColor: '#fff',
+      pointBorderWidth: 2,
+      pointRadius: 4,
+      pointHoverRadius: 6
+    }]
   };
 
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        display: false
-      },
+      legend: { display: false },
       tooltip: {
         backgroundColor: '#141a2e',
         titleColor: '#ccd6f6',
@@ -339,55 +366,102 @@ function JobDetail({ jobId }) {
           <h2>Job Details</h2>
           <span className="job-id-full">{jobId}</span>
         </div>
-        <span className={`status-badge ${getStatusColor()}`}>
-          {job.status}
-        </span>
+        <div className="detail-header-right">
+          {isCPSAT && <span className="solver-badge solver-cpsat">CP-SAT</span>}
+          {isEvolution && <span className="solver-badge solver-evolution">Evolution</span>}
+          <span className={`status-badge ${getStatusColor()}`}>
+            {job.status}
+          </span>
+        </div>
       </div>
 
-      <div className="stats-grid">
-        <div className="stat">
-          <label>Best Fitness</label>
-          <div className="stat-value">
-            {job.best_fitness ? job.best_fitness.toFixed(4) : '—'}
+      {/* ---------- Stats ---------- */}
+      {isEvolution && (
+        <div className="stats-grid">
+          <div className="stat">
+            <label>Best Fitness</label>
+            <div className="stat-value">
+              {job.best_fitness ? job.best_fitness.toFixed(4) : '—'}
+            </div>
+          </div>
+          <div className="stat">
+            <label>Progress</label>
+            <div className="stat-value">{(job.progress * 100).toFixed(0)}%</div>
+          </div>
+          <div className="stat">
+            <label>Generations</label>
+            <div className="stat-value">{job.total_generations || history.length}</div>
           </div>
         </div>
-        <div className="stat">
-          <label>Progress</label>
-          <div className="stat-value">{(job.progress * 100).toFixed(0)}%</div>
+      )}
+
+      {isCPSAT && (
+        <div className="stats-grid">
+          <div className="stat">
+            <label>Solver Status</label>
+            <div className="stat-value">{job.result_meta.status || '—'}</div>
+          </div>
+          <div className="stat">
+            <label>Solve Time</label>
+            <div className="stat-value">
+              {job.result_meta.solve_time_seconds != null
+                ? `${job.result_meta.solve_time_seconds}s`
+                : '—'}
+            </div>
+          </div>
+          <div className="stat">
+            <label>Objective</label>
+            <div className="stat-value">
+              {job.best_fitness != null ? job.best_fitness.toFixed(0) : '0'}
+            </div>
+          </div>
         </div>
-        <div className="stat">
-          <label>Generations</label>
-          <div className="stat-value">{job.total_generations || history.length}</div>
-        </div>
-      </div>
+      )}
 
       <div className="progress-bar">
-        <div
-          className="progress-fill"
-          style={{ width: `${job.progress * 100}%` }}
-        ></div>
+        <div className="progress-fill" style={{ width: `${job.progress * 100}%` }}></div>
       </div>
 
-      <h3 className="section-title">📈 Fitness Over Generations</h3>
-      <div className="chart-container">
-        {history.length > 0 ? (
-          <Line data={chartData} options={chartOptions} />
-        ) : (
-          <div className="chart-empty">
-            {job.status === 'completed'
-              ? 'Job completed (chart data may be partial)'
-              : 'Waiting for evolution to start...'}
+      {/* ---------- Body: Chart or Schedule ---------- */}
+      {isEvolution && (
+        <>
+          <h3 className="section-title">📈 Fitness Over Generations</h3>
+          <div className="chart-container">
+            {history.length > 0 ? (
+              <Line data={chartData} options={chartOptions} />
+            ) : (
+              <div className="chart-empty">
+                {job.status === 'completed'
+                  ? 'Job completed (chart data may be partial)'
+                  : 'Waiting for evolution to start...'}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
-      {job.status === 'completed' && job.best_individual.length > 0 && (
+      {isCPSAT && (
+        <>
+          <h3 className="section-title">
+            📅 Nurse Schedule
+            {job.result_meta.num_nurses && job.result_meta.num_days && (
+              <span className="section-subtitle">
+                {' '}({job.result_meta.num_nurses} nurses × {job.result_meta.num_days} days)
+              </span>
+            )}
+          </h3>
+          <ScheduleGrid schedule={job.best_individual} />
+        </>
+      )}
+
+      {/* ---------- Evolution weights ---------- */}
+      {isEvolution && job.status === 'completed' && Array.isArray(job.best_individual) && job.best_individual.length > 0 && (
         <div className="result-section">
           <h3 className="section-title">🧠 Evolved Network</h3>
           <div className="weights-display">
             {job.best_individual.slice(0, 8).map((w, i) => (
               <span key={i} className="weight-tag">
-                {w.toFixed(3)}
+                {typeof w === 'number' ? w.toFixed(3) : String(w)}
               </span>
             ))}
             {job.best_individual.length > 8 && (
@@ -401,7 +475,7 @@ function JobDetail({ jobId }) {
 
       {job.status === 'failed' && (
         <div className="error-message">
-          ⚠️ {job.error || 'Evolution failed. Check worker logs.'}
+          ⚠️ {job.error || 'Job failed. Check worker logs.'}
         </div>
       )}
     </div>
