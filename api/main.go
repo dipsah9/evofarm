@@ -40,6 +40,7 @@ type JobRequest struct {
     PopulationSize int    `json:"population_size"`
     Generations    int    `json:"generations"`
     FitnessFunction string `json:"fitness_function"`
+    SolverType      string `json:"solver_type"`
 }
 
 type JobStatus struct {
@@ -90,6 +91,9 @@ func submitJob(w http.ResponseWriter, r *http.Request) {
     if req.FitnessFunction == "" {
         req.FitnessFunction = "xor"
     }
+    if req.SolverType == "" {
+        req.SolverType = "evolution"
+    }
 
     // Generate unique job ID
     bytes := make([]byte, 16)
@@ -112,10 +116,11 @@ func submitJob(w http.ResponseWriter, r *http.Request) {
         "population_size": req.PopulationSize,
         "generations":     req.Generations,
         "fitness_function": req.FitnessFunction,
+        "solver_type":      req.SolverType,
         "best_individual": "[]",
         "error":           "",
     }
-    
+
     err := rdb.HSet(ctx, "job:"+jobID, jobData).Err()
     if err != nil {
         http.Error(w, "Failed to store job", http.StatusInternalServerError)

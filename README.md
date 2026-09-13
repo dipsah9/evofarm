@@ -21,7 +21,7 @@ Go API (:8080) <---- CORS ----> Redis (:6379) <---- Python workers
 - **Frontend**: React dashboard for submitting jobs and viewing status, progress, fitness history, and evolved weights.
 - **API**: Go HTTP service for job creation, status queries, health checks, and browser CORS support.
 - **Redis**: Stores queued job IDs and job state.
-- **Worker**: Python neuroevolution service that evaluates the 2-4-1 neural network and updates Redis.
+- **Worker**: Python service that dispatches jobs to solver modules, evaluates environments, and updates Redis.
 
 ## Requirements
 
@@ -75,7 +75,8 @@ curl -X POST http://localhost:8080/jobs \
   -d '{
     "population_size": 100,
     "generations": 50,
-    "fitness_function": "xor"
+    "fitness_function": "xor",
+    "solver_type": "evolution"
   }'
 ```
 
@@ -98,6 +99,7 @@ The request fields are optional and default to:
 | `population_size` | `100` | Candidate solutions evaluated per generation |
 | `generations` | `50` | Number of evolution cycles |
 | `fitness_function` | `xor` | Fitness function used by the worker |
+| `solver_type` | `evolution` | Solver used to process the job |
 
 ## API Reference
 
@@ -114,6 +116,8 @@ Creates a job, stores its configuration in Redis, and adds its ID to the job que
 Returns job status and results. Returns HTTP `404` when the job does not exist.
 
 Possible job states are `pending`, `running`, `completed`, and `failed`.
+
+Jobs are dispatched using `solver_type`. The currently available solver is `evolution`.
 
 The status response includes:
 
@@ -138,6 +142,8 @@ The activation function is `tanh`, and XOR fitness is calculated from the four t
 ```text
 fitness = 1 / (1 + total_squared_error)
 ```
+
+The worker keeps the evolution algorithm in `worker/solvers/evolution.py` and the XOR environment in `worker/environments/xor.py`. This separation allows additional solvers and environments to be added without changing the worker queue loop.
 
 ## Monitor a Job from the Terminal
 
@@ -206,6 +212,11 @@ REACT_APP_API_URL=http://localhost:8080
 ├── worker/
 │   ├── Dockerfile
 │   ├── main.py
+│   ├── environments/
+│   │   └── xor.py
+│   ├── problems/
+│   ├── solvers/
+│   │   └── evolution.py
 │   └── requirements.txt
 ├── shared/
 │   └── types.py
@@ -248,6 +259,8 @@ docker compose up --build
 ```
 
 If the API cannot connect to Redis, confirm that the Redis service is running and that container services use `redis:6379` rather than `localhost:6379`.
+
+Worker output is configured for unbuffered Python logging, so startup, solver, and per-generation messages should appear immediately with `docker compose logs -f worker`.
 
 ## License
 
