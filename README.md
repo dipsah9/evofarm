@@ -11,6 +11,8 @@ into independently scalable components.
 
 ![EvoFarm Dashboard](docs/screenshots/dashboard.png)
 
+![EvoFarm Dashboard](docs/screenshots/cpsat_dashboard.png)
+
 ## Why EvoFarm?
 
 Many optimization problems are not well served by a single algorithm.
