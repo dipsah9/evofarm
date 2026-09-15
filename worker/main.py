@@ -33,41 +33,52 @@ def run_evolution(r: redis.Redis, job_id: str, job: dict) -> None:
     """Run a neuroevolution job and stream progress to Redis."""
     population_size = int(job.get("population_size", 100))
     generations = int(job.get("generations", 50))
-    environment = job.get("fitness_function", "xor")
+    environment_name = job.get("fitness_function", "xor")
 
-    if environment != "xor":
-        raise ValueError(f"Unknown environment: {environment}")
+    # Lazy import to keep startup fast and allow future environments
+    if environment_name == "portfolio":
+        from environments import portfolio as env_module
+    elif environment_name == "xor":
+        env_module = xor_env
+    else:
+        raise ValueError(f"Unknown environment: {environment_name}")
 
-    fitness_fn = xor_env.fitness
-    genome_size = xor_env.genome_size()
-    
-    print(f"  -> Evolution solver | env={environment} | "
-          f"pop={population_size} | gens={generations}")
-    
+    fitness_fn = env_module.fitness
+    genome_size = env_module.genome_size()
+
+    print(f"  -> Evolution solver | env={environment_name} | "
+          f"pop={population_size} | gens={generations} | "
+          f"genome_size={genome_size}")
+
     history = []
     best_genome = None
     best_fitness = 0.0
-    
+
+     # Get environment-specific evolution params
+    env_params = env_module.evolution_params() if hasattr(env_module, "evolution_params") else {}
+
     for progress, fitness, genome in evolution.evolve(
         fitness_fn=fitness_fn,
         genome_size=genome_size,
         population_size=population_size,
         generations=generations,
+        **env_params,
     ):
         best_fitness = fitness
         best_genome = genome
         history.append({"generation": len(history) + 1, "fitness": fitness})
-        
+
         # Stream to Redis
         r.hset(f"job:{job_id}", mapping={
             "progress": progress,
             "best_fitness": fitness,
             "history": json.dumps(history),
         })
-        
-        # Print to worker log every generation (or every few for long runs)
-        print(f"     gen {len(history):3d} | fitness = {fitness:.4f}")
-    
+
+        # Log every generation for XOR (fast), every 5 for portfolio (slower)
+        if environment_name == "xor" or len(history) % 5 == 0 or len(history) == generations:
+            print(f"     gen {len(history):3d} | fitness = {fitness:.4f}")
+
     # Final write
     r.hset(f"job:{job_id}", mapping={
         "status": "completed",
@@ -76,6 +87,7 @@ def run_evolution(r: redis.Redis, job_id: str, job: dict) -> None:
         "best_individual": json.dumps(best_genome),
         "history": json.dumps(history),
         "total_generations": len(history),
+        "environment": environment_name,
     })
 
 def run_cpsat(r: redis.Redis, job_id: str, job: dict) -> None:

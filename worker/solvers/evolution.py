@@ -41,6 +41,8 @@ def evolve(
     population_size: int,
     generations: int,
     elitism_fraction: float = 0.2,
+    mutation_rate: float = 0.15,
+    mutation_strength: float = 0.5,
 ) -> Generator[Tuple[float, float, List[float]], None, None]:
     """
     Main evolution loop.
@@ -74,7 +76,8 @@ def evolve(
             p1 = random.choice(parents)
             p2 = random.choice(parents)
             child = crossover(p1, p2)
-            child = mutate(child)
+            child = mutate(child, mutation_rate=mutation_rate,
+                           mutation_strength=mutation_strength)
             next_population.append(child)
         
         population = next_population

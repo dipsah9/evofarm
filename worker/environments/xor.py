@@ -43,6 +43,14 @@ XOR_CASES = [
     ([1.0, 1.0], 0.0),
 ]
 
+def evolution_params() -> dict:
+    """XOR works well with these defaults — smooth fitness landscape."""
+    return {
+        "elitism_fraction": 0.2,
+        "mutation_rate": 0.15,
+        "mutation_strength": 0.5,
+    }
+
 
 def fitness(weights: List[float]) -> float:
     """Higher is better. Perfect = 1.0."""
