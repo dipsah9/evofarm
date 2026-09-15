@@ -71,6 +71,7 @@ func main() {
     r.HandleFunc("/jobs", submitJob).Methods("POST")
     r.HandleFunc("/jobs/{id}", getJobStatus).Methods("GET")
     r.HandleFunc("/health", healthCheck).Methods("GET")
+	r.HandleFunc("/problems", listProblems).Methods("GET")
 
     log.Println("API listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(r)))
@@ -90,18 +91,18 @@ func submitJob(w http.ResponseWriter, r *http.Request) {
     if req.Generations == 0 {
         req.Generations = 50
     }
-    if req.FitnessFunction == "" {
-        req.FitnessFunction = "xor"
-    }
-    if req.SolverType == "" {
-        req.SolverType = "evolution"
-    }
-    if req.Problem == "" {
-        req.Problem = "nurse_rostering"
-    }
-    if req.TimeLimitSeconds == 0 {
-        req.TimeLimitSeconds = 30
-    }
+    
+	// If user provides a problem but no solver, leave solver empty —
+	// the worker will route. This is the new preferred flow.
+	// If user provides neither, fall back to evolution+xor for backward compat.
+	if req.SolverType == "" && req.Problem == "" {
+		req.SolverType = "evolution"
+		req.FitnessFunction = "xor"
+	}
+	if req.TimeLimitSeconds == 0 {
+		req.TimeLimitSeconds = 30
+	}
+    
 
     // Generate unique job ID
     bytes := make([]byte, 16)
@@ -214,4 +215,28 @@ func getEnv(key, defaultValue string) string {
         return value
     }
     return defaultValue
+}
+
+func listProblems(w http.ResponseWriter, r *http.Request) {
+    // Hardcoded catalog. Must stay in sync with worker/routing.py.
+    // When this drifts, we'll move to auto-discovery.
+    catalog := map[string]interface{}{
+        "xor": map[string]interface{}{
+            "solver":      "evolution",
+            "description": "Evolve a neural network to solve the XOR truth table",
+            "category":    "puzzle",
+        },
+        "portfolio": map[string]interface{}{
+            "solver":      "evolution",
+            "description": "Maximize Sharpe ratio of a multi-asset portfolio",
+            "category":    "optimization",
+        },
+        "nurse_rostering": map[string]interface{}{
+            "solver":      "cpsat",
+            "description": "Assign nurses to shifts satisfying coverage and rest rules",
+            "category":    "scheduling",
+        },
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(catalog)
 }

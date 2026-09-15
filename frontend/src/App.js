@@ -33,50 +33,83 @@ function App() {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState(null);
-  const [formData, setFormData] = useState({
+//   const [formData, setFormData] = useState({
+//     population_size: 100,
+//     generations: 50,
+//     fitness_function: 'xor',
+//     solver_type: 'evolution',
+//     problem: 'nurse_rostering',
+//     time_limit_seconds: 30
+//   });
+    const [formData, setFormData] = useState({
+    problem: 'xor',
     population_size: 100,
     generations: 50,
-    fitness_function: 'xor',
-    solver_type: 'evolution',
-    problem: 'nurse_rostering',
-    time_limit_seconds: 30
-  });
+    });
+
+
+
+  const [problems, setProblems] = useState({});
+
+    useEffect(() => {
+    const fetchCatalog = async () => {
+        try {
+        const res = await axios.get(`${API_URL}/problems`);
+        setProblems(res.data);
+        } catch (err) {
+        console.error('Failed to load problem catalog:', err);
+        }
+    };
+    fetchCatalog();
+    }, []);
 
   // Submit a new job
   const submitJob = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const response = await axios.post(`${API_URL}/jobs`, formData);
-      const newJob = {
-        id: response.data.job_id,
-        status: 'pending',
-        progress: 0,
-        best_fitness: 0,
-        created_at: new Date().toISOString()
-      };
-      setJobs([newJob, ...jobs]);
-      setSelectedJobId(newJob.id);
-    } catch (error) {
-      console.error('Error submitting job:', error);
-      alert('Failed to submit job. Is the API running?');
-    } finally {
-      setLoading(false);
+  e.preventDefault();
+  setLoading(true);
+  try {
+    const meta = problems[formData.problem] || {};
+    const payload = { problem: formData.problem };
+
+    if (meta.solver === 'cpsat') {
+      payload.config = { num_nurses: 6, num_days: 7 };
+      payload.time_limit_seconds = 30;
+    } else {
+      payload.population_size = formData.population_size;
+      payload.generations = formData.generations;
     }
-  };
 
-  const handleEnvChange = (env) => {
-  // Portfolio needs more search than XOR
-  const defaults = env === 'portfolio'
-    ? { population_size: 100, generations: 50 }
-    : { population_size: 100, generations: 50 };
+    const response = await axios.post(`${API_URL}/jobs`, payload);
 
-  setFormData({
-    ...formData,
-    fitness_function: env,
-    ...defaults,
-  });
+    const newJob = {
+      id: response.data.job_id,
+      status: 'pending',
+      progress: 0,
+      best_fitness: 0,
+      created_at: new Date().toISOString(),
+    };
+    setJobs([newJob, ...jobs]);
+    setSelectedJobId(newJob.id);
+  } catch (error) {
+    console.error('Error submitting job:', error);
+    alert('Failed to submit job. Is the API running?');
+  } finally {
+    setLoading(false);
+  }
 };
+
+  const handleProblemChange = (problem) => {
+    const meta = problems[problem] || {};
+    const defaults = meta.solver === 'cpsat'
+      ? { population_size: 0, generations: 0 }
+      : { population_size: 100, generations: 50 };
+
+    setFormData((prev) => ({
+      ...prev,
+      problem,
+      ...defaults,
+    }));
+  };
 
   return (
     <div className="App">
@@ -93,76 +126,54 @@ function App() {
           <div className="card">
             <h2>Submit Job</h2>
             <form onSubmit={submitJob}>
-              <div className="form-group">
-                <label>Population Size</label>
-                <input
-                  type="number"
-                  value={formData.population_size}
-                  onChange={(e) => setFormData({...formData, population_size: parseInt(e.target.value)})}
-                  min="10"
-                  max="1000"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Generations</label>
-                <input
-                  type="number"
-                  value={formData.generations}
-                  onChange={(e) => setFormData({...formData, generations: parseInt(e.target.value)})}
-                  min="5"
-                  max="500"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Solver Type</label>
+            <div className="form-group">
+                <label>Problem</label>
                 <select
-                  value={formData.solver_type}
-                  onChange={(e) => setFormData({...formData, solver_type: e.target.value})}
+                value={formData.problem}
+                onChange={(e) => handleProblemChange(e.target.value)}
                 >
-                  <option value="evolution">Evolution</option>
-                  <option value="cpsat">CP-SAT</option>
+                {Object.keys(problems).length === 0 && (
+                    <option value="xor">Loading...</option>
+                )}
+                {Object.entries(problems).map(([key, meta]) => (
+                    <option key={key} value={key}>
+                    {key} — {meta.description} ({meta.solver})
+                    </option>
+                ))}
                 </select>
-              </div>
-              {formData.solver_type === 'cpsat' && (
+            </div>
+
+            {/* Only show population/generations for evolution problems */}
+            {problems[formData.problem]?.solver === 'evolution' && (
                 <>
-                  <div className="form-group">
-                    <label>CP-SAT Problem</label>
-                    <select
-                      value={formData.problem}
-                      onChange={(e) => setFormData({...formData, problem: e.target.value})}
-                    >
-                      <option value="nurse_rostering">Nurse Rostering</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Time Limit (seconds)</label>
+                <div className="form-group">
+                    <label>Population Size</label>
                     <input
-                      type="number"
-                      value={formData.time_limit_seconds}
-                      onChange={(e) => setFormData({...formData, time_limit_seconds: parseFloat(e.target.value)})}
-                      min="1"
-                      max="300"
-                      step="1"
-                      required
+                    type="number"
+                    value={formData.population_size}
+                    onChange={(e) => setFormData({...formData, population_size: parseInt(e.target.value)})}
+                    min="10"
+                    max="1000"
+                    required
                     />
-                  </div>
+                </div>
+                <div className="form-group">
+                    <label>Generations</label>
+                    <input
+                    type="number"
+                    value={formData.generations}
+                    onChange={(e) => setFormData({...formData, generations: parseInt(e.target.value)})}
+                    min="5"
+                    max="500"
+                    required
+                    />
+                </div>
                 </>
-              )}
-              <div className="form-group">
-                <label>Fitness Function</label>
-                <select
-                value={formData.fitness_function}
-                onChange={(e) => handleEnvChange(e.target.value)}
-                >
-                <option value="xor">XOR</option>
-                <option value="portfolio">Portfolio Optimization</option>
-                </select>
-              </div>
-              <button type="submit" disabled={loading}>
+            )}
+
+            <button type="submit" disabled={loading}>
                 {loading ? 'Submitting...' : ' Start Job'}
-              </button>
+            </button>
             </form>
           </div>
 
@@ -239,6 +250,7 @@ function JobListItem({ jobId, initialStatus, isSelected, onClick }) {
       default: return '⏳';
     }
   };
+
 
   return (
     <div

@@ -10,6 +10,7 @@ import os
 import sys
 import traceback
 import time
+import routing
 
 import redis
 
@@ -33,7 +34,9 @@ def run_evolution(r: redis.Redis, job_id: str, job: dict) -> None:
     """Run a neuroevolution job and stream progress to Redis."""
     population_size = int(job.get("population_size", 100))
     generations = int(job.get("generations", 50))
-    environment_name = job.get("fitness_function", "xor")
+    environment_name = job.get("fitness_function", "").strip()
+    if not environment_name:
+        environment_name = "xor"  # safe default
 
     # Lazy import to keep startup fast and allow future environments
     if environment_name == "portfolio":
@@ -176,17 +179,42 @@ def process_job(r: redis.Redis, job_id: str) -> None:
     if not job:
         print(f"Job {job_id} not found, skipping")
         return
-    
-    solver_type = job.get("solver_type", "evolution")
-    print(f"Job {job_id} | solver={solver_type}")
-    
-    r.hset(f"job:{job_id}", "status", "running")
-    
+
+    problem = job.get("problem", "")
+    explicit_solver = job.get("solver_type", "")
+
+    # Explicit solver_type wins (backward compat).
+    # Otherwise, route via the hardcoded table.
+    if explicit_solver:
+        solver_type = explicit_solver
+    else:
+        solver_type = routing.resolve(problem)
+
+    print(f"Job {job_id} | problem={problem or '(none)'} | solver={solver_type}")
+
+    if solver_type == "auto":
+        print(f"  -> Unknown problem; defaulting to evolution")
+        solver_type = "evolution"
+
+    r.hset(f"job:{job_id}", mapping={
+        "status": "running",
+        "solver_type": solver_type,
+    })
+
     try:
-        solver_fn = SOLVERS.get(solver_type)
-        if solver_fn is None:
+        if solver_type == "evolution":
+            # If the problem is known and fitness_function is missing/empty,
+            # use the problem name as the environment name.
+            if problem and not job.get("fitness_function"):
+                job["fitness_function"] = problem
+            run_evolution(r, job_id, job)
+        elif solver_type == "cpsat":
+            if problem and not job.get("problem"):
+                job["problem"] = problem
+            run_cpsat(r, job_id, job)
+        else:
             raise ValueError(f"Unknown solver_type: {solver_type}")
-        solver_fn(r, job_id, job)
+
         print(f"Job {job_id} complete")
 
     except Exception as e:
@@ -198,7 +226,6 @@ def process_job(r: redis.Redis, job_id: str) -> None:
             "error": error_msg,
         })
 
-
 # ---------- Main loop ----------
 
 def main() -> None:
@@ -207,6 +234,7 @@ def main() -> None:
     print("EvoFarm worker started")
     print(f"  Redis: {os.getenv('REDIS_ADDR', 'localhost:6379')}")
     print(f"  Solvers: {list(SOLVERS.keys())}")
+    print(f"  Routing: {routing.ROUTING}")
     print("=" * 60)
     
     while True:
