@@ -9,9 +9,28 @@ Instead of treating optimization as a single Python process, EvoFarm
 separates **search, scheduling, evaluation, monitoring, and execution**
 into independently scalable components.
 
-![EvoFarm Dashboard](docs/screenshots/dashboard.png)
+## Screenshots
 
-![EvoFarm Dashboard](docs/screenshots/cpsat_dashboard.png)
+### XOR (Evolution)
+
+![XOR fitness chart climbing to 0.99 over 100 generations](docs/screenshots/dashboard_xor.png)
+
+*Evolution solving XOR — fitness climbs from ~0.5 to 0.99 in 100 generations.*
+
+### Nurse Rostering (CP-SAT)
+
+![Color-coded 6×7 nurse schedule solved to optimality in 0.185 seconds](docs/screenshots/dashboard_cpsat.png)
+
+*A CP-SAT schedule for 6 nurses over 7 days — solved to optimality in 0.221s.*
+
+### Portfolio Optimization (Evolution)
+
+![Portfolio allocation bars showing 33% real estate, 24% corporate bonds](docs/screenshots/dashboard_portfolio.png)
+
+*Evolution optimizing an 8-asset portfolio — converges to Sharpe 0.812 in 50 generations.*
+
+*Evolution optimizing a portfolio allocation to maximize Sharpe ratio.
+Converges to 0.812 in 50 generations — beating brute-force local search (0.789).*
 
 ## Why EvoFarm?
 

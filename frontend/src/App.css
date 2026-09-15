@@ -448,3 +448,48 @@ button:disabled {
   font-weight: 400;
   font-size: 12px;
 }
+
+.portfolio-bars {
+  background: #0a0e1a;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #1a1f35;
+}
+
+.portfolio-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 60px;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.portfolio-row:last-child {
+  margin-bottom: 0;
+}
+
+.portfolio-label {
+  font-size: 12px;
+  color: #8892b0;
+}
+
+.portfolio-bar-track {
+  height: 18px;
+  background: #1a1f35;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.portfolio-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+  min-width: 2px;
+}
+
+.portfolio-value {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 13px;
+  color: #ccd6f6;
+  text-align: right;
+}

@@ -65,6 +65,19 @@ function App() {
     }
   };
 
+  const handleEnvChange = (env) => {
+  // Portfolio needs more search than XOR
+  const defaults = env === 'portfolio'
+    ? { population_size: 100, generations: 50 }
+    : { population_size: 100, generations: 50 };
+
+  setFormData({
+    ...formData,
+    fitness_function: env,
+    ...defaults,
+  });
+};
+
   return (
     <div className="App">
       <header className="header">
@@ -140,10 +153,11 @@ function App() {
               <div className="form-group">
                 <label>Fitness Function</label>
                 <select
-                  value={formData.fitness_function}
-                  onChange={(e) => setFormData({...formData, fitness_function: e.target.value})}
+                value={formData.fitness_function}
+                onChange={(e) => handleEnvChange(e.target.value)}
                 >
-                  <option value="xor">XOR</option>
+                <option value="xor">XOR</option>
+                <option value="portfolio">Portfolio Optimization</option>
                 </select>
               </div>
               <button type="submit" disabled={loading}>
@@ -455,29 +469,90 @@ function JobDetail({ jobId }) {
       )}
 
       {/* ---------- Evolution weights ---------- */}
-      {isEvolution && job.status === 'completed' && Array.isArray(job.best_individual) && job.best_individual.length > 0 && (
-        <div className="result-section">
-          <h3 className="section-title">🧠 Evolved Network</h3>
-          <div className="weights-display">
-            {job.best_individual.slice(0, 8).map((w, i) => (
-              <span key={i} className="weight-tag">
-                {typeof w === 'number' ? w.toFixed(3) : String(w)}
-              </span>
-            ))}
-            {job.best_individual.length > 8 && (
-              <span className="weight-tag more">
-                +{job.best_individual.length - 8} more
-              </span>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Portfolio job: 8 weights → render allocation bars */}
+        {isEvolution && job.status === 'completed' &&
+        Array.isArray(job.best_individual) &&
+        job.best_individual.length === 8 &&
+        job.best_individual.every(v => typeof v === 'number') && (
+            <PortfolioDisplay rawGenome={job.best_individual} />
+        )}
 
+        {/* XOR job: 17 weights → render weight tags */}
+        {isEvolution && job.status === 'completed' &&
+        Array.isArray(job.best_individual) &&
+        job.best_individual.length === 17 &&
+        job.best_individual.every(v => typeof v === 'number') && (
+            <div className="result-section">
+            <h3 className="section-title">🧠 Evolved Network</h3>
+            <div className="weights-display">
+                {job.best_individual.slice(0, 8).map((w, i) => (
+                <span key={i} className="weight-tag">{w.toFixed(3)}</span>
+                ))}
+                <span className="weight-tag more">
+                +{job.best_individual.length - 8} more
+                </span>
+            </div>
+            </div>
+        )}
       {job.status === 'failed' && (
         <div className="error-message">
           ⚠️ {job.error || 'Job failed. Check worker logs.'}
         </div>
       )}
+    </div>
+  );
+}
+
+function PortfolioDisplay({ rawGenome }) {
+  const ASSETS = [
+    'US Equity',
+    'EU Equity',
+    'Emerging Markets',
+    'Government Bonds',
+    'Corporate Bonds',
+    'Gold',
+    'Real Estate',
+    'Commodities',
+  ];
+
+  // Must match the backend softmax exactly
+  const maxVal = Math.max(...rawGenome);
+  const exps = rawGenome.map(v => Math.exp(v - maxVal));
+  const sumExp = exps.reduce((a, b) => a + b, 0);
+  const weights = exps.map(v => v / sumExp);
+
+  const COLORS = [
+    '#667eea', '#764ba2', '#8fa4ff', '#b794f6',
+    '#4caf50', '#f4b942', '#e67e22', '#e74c3c',
+  ];
+
+  // Sort by weight descending for readability
+  const rows = weights
+    .map((w, i) => ({ name: ASSETS[i], weight: w, color: COLORS[i] }))
+    .sort((a, b) => b.weight - a.weight);
+
+  return (
+    <div className="result-section">
+      <h3 className="section-title">💼 Portfolio Allocation</h3>
+      <div className="portfolio-bars">
+        {rows.map((row, i) => (
+          <div key={i} className="portfolio-row">
+            <div className="portfolio-label">{row.name}</div>
+            <div className="portfolio-bar-track">
+              <div
+                className="portfolio-bar-fill"
+                style={{
+                  width: `${(row.weight * 100).toFixed(2)}%`,
+                  background: row.color,
+                }}
+              ></div>
+            </div>
+            <div className="portfolio-value">
+              {(row.weight * 100).toFixed(1)}%
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
