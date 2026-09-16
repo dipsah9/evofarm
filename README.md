@@ -1,40 +1,35 @@
-# EvoFarm --- Distributed Optimization Experiments
+# EvoFarm --- Distributed Hybrid Optimization
 
-### Distributed infrastructure for solver jobs and optimization workloads
+### Submit a problem. Route it to the right solver. Watch it run.
 
-EvoFarm is a small distributed optimization platform for experimenting
-with population-based search and constraint solving in a shared job
-architecture.
+**[Live demo](https://evofarm.vercel.app/)** · **[API](https://evofarm-api.fly.dev/)**
 
-The repository is designed around a simple pattern: a user submits a job,
-a Go API stores the metadata in Redis, a Python worker dispatches the
-work to the right solver, and the dashboard exposes the live execution
-state and result payload.
+EvoFarm is a hybrid optimization platform for running evolutionary and
+constraint-based workloads through one distributed job interface. Users
+submit a problem, the platform routes it to the appropriate solver, and a
+React dashboard reports progress and results as the job executes.
 
-This is a working prototype and research platform rather than a finished
-production product. The core infrastructure is credible and end-to-end,
-but it still lacks the hardening expected from a mature multi-tenant
-optimization service.
+It demonstrates a modern distributed architecture built from polyglot
+services, a Redis-backed job queue, a pluggable solver layer, and
+containerized deployment across Vercel and Fly.io.
 
-## Status: prototype, not perfect
+EvoFarm is currently an open-source engineering prototype and research
+platform. It has a working deployed path, but it is not yet a hardened
+multi-tenant production service: authentication, authorization, durable
+job storage, observability, and autoscaling remain future work.
 
-EvoFarm currently demonstrates the following successfully:
+## What it demonstrates
 
--   Redis-backed distributed job queue and job persistence
--   Worker-based solver routing between evolution and CP-SAT
--   API + dashboard flow for submitting and observing jobs
--   XOR neuroevolution and nurse-rostering CP-SAT workloads
--   Benchmark output and markdown reporting under `docs/benchmarks/`
-
-What it is not yet:
-
--   a production-ready SaaS or platform with auth, tenancy, and RBAC
--   a broad benchmark suite for production-grade optimization research
--   a fully hardened deployment system for large-scale autoscaling
--   a mature portfolio engine with automatic solver selection and model tracking
-
-This project is best understood as a credible engineering prototype for
-optimized distributed workload orchestration and solver experimentation.
+-   **Hybrid solver routing:** evolutionary search for heuristic workloads
+  and OR-Tools CP-SAT for discrete constraint problems.
+-   **Distributed execution:** jobs are queued in Redis and processed by
+  independent Python workers.
+-   **Live observability:** the dashboard polls job state, fitness history,
+  solver metadata, and generated nurse schedules.
+-   **Two reference workloads:** XOR neuroevolution and nurse rostering
+  with coverage, consecutive-work, and night-rest constraints.
+-   **Benchmark tooling:** CP-SAT instances can be run locally with CSV and
+  Markdown reports written to `docs/benchmarks/`.
 
 ## Screenshots
 
@@ -58,6 +53,27 @@ optimized distributed workload orchestration and solver experimentation.
 
 *Evolution optimizing a portfolio allocation to maximize Sharpe ratio.
 Converges to 0.812 in 50 generations — beating brute-force local search (0.789).*
+
+## Try the deployed app
+
+Open the [EvoFarm dashboard](https://evofarm.vercel.app/) to submit a job
+and monitor its progress. The dashboard is deployed on Vercel and uses the
+public Go API deployed on Fly.io.
+
+Check the API directly:
+
+``` bash
+curl https://evofarm-api.fly.dev/health
+```
+
+Expected response:
+
+``` json
+{"status":"healthy"}
+```
+
+The current public deployment is intended for demonstration and may be
+reset, rate-limited, or unavailable while the project is being developed.
 
 ## Why EvoFarm?
 
@@ -169,7 +185,7 @@ rostering problems and is suitable for verifying solver behavior and
 infrastructure wiring. It is not yet a large-scale stress benchmark with
 deep industrial coverage.
 
-## Quick Start
+## Run locally
 
 ### Requirements
 
@@ -185,13 +201,13 @@ From the project root:
 docker compose up --build
 ```
 
-Open the dashboard:
+Open the local dashboard:
 
 ``` text
 http://localhost:3000
 ```
 
-The API is available at:
+The local API is available at:
 
 ``` text
 http://localhost:8080
@@ -203,7 +219,7 @@ Redis is exposed at:
 localhost:6379
 ```
 
-Check API health:
+Check local API health:
 
 ``` bash
 curl http://localhost:8080/health
@@ -230,15 +246,13 @@ The dashboard polls the API every two seconds during development.
 ## Submit a Job Through the API
 
 ``` bash
-curl -X POST http://localhost:8080/jobs \
+curl -X POST https://evofarm-api.fly.dev/jobs \
   -H "Content-Type: application/json" \
   -d '{
     "population_size": 100,
     "generations": 50,
     "fitness_function": "xor",
-    "solver_type": "evolution",
-    "problem": "nurse_rostering",
-    "time_limit_seconds": 30
+    "solver_type": "evolution"
   }'
 ```
 
@@ -248,10 +262,10 @@ Example response:
 {"job_id":"0643fdcd278a62a5cb103463a8843e03","status":"pending"}
 ```
 
-Query the job:
+Query the job using the returned ID:
 
 ``` bash
-curl http://localhost:8080/jobs/<job_id>
+curl https://evofarm-api.fly.dev/jobs/<job_id>
 ```
 
 ### Job Configuration
@@ -279,12 +293,12 @@ curl http://localhost:8080/jobs/<job_id>
                                                       time
   -------------------------------------------------------------------------
 
-### Submit a CP-SAT Job
+### Submit a CP-SAT job
 
 Use `solver_type: "cpsat"`:
 
 ``` bash
-curl -X POST http://localhost:8080/jobs \
+curl -X POST https://evofarm-api.fly.dev/jobs \
   -H "Content-Type: application/json" \
   -d '{
     "solver_type": "cpsat",
@@ -293,9 +307,11 @@ curl -X POST http://localhost:8080/jobs \
   }'
 ```
 
-The current nurse-rostering problem assigns six nurses across seven days
+The default nurse-rostering instance assigns six nurses across seven days
 while enforcing shift coverage, one shift per nurse per day, maximum
-consecutive work days, and post-night-shift rest.
+consecutive work days, and post-night-shift rest. The same commands work
+against a local API by replacing the public base URL with
+`http://localhost:8080`.
 
 ## API Reference
 

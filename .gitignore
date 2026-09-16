@@ -4,3 +4,4 @@ node_modules
 # or simply
 *.pycapi/api
 api/api
+frontend/.vercel
