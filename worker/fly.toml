@@ -1,0 +1,15 @@
+app = "evofarm-worker"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+# No [http_service] — workers don't serve HTTP.
+# They're background processes that poll Redis.
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+[processes]
+  worker = "python main.py"

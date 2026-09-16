@@ -56,9 +56,22 @@ type JobStatus struct {
 
 func main() {
     // Connect to Redis
-    rdb = redis.NewClient(&redis.Options{
-        Addr: getEnv("REDIS_ADDR", "localhost:6379"),
-    })
+    // rdb = redis.NewClient(&redis.Options{
+    //     Addr: getEnv("REDIS_ADDR", "localhost:6379"),
+    // })
+
+	redisURL := getEnv("REDIS_URL", "")
+	if redisURL == "" {
+		// Fallback for local development
+		redisURL = "redis://" + getEnv("REDIS_ADDR", "localhost:6379")
+	}
+
+	opt, err := redis.ParseURL(redisURL)
+	if err != nil {
+		log.Fatal("Invalid REDIS_URL:", err)
+	}
+
+	rdb = redis.NewClient(opt)
 
     // Test connection
     if err := rdb.Ping(ctx).Err(); err != nil {

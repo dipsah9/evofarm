@@ -23,7 +23,14 @@ from solvers import cpsat
 # ---------- Redis helpers ----------
 
 def get_redis_connection() -> redis.Redis:
+    url = os.getenv("REDIS_URL", "")
+    if url:
+        print(f"  Using REDIS_URL (length: {len(url)})")
+        return redis.from_url(url, decode_responses=True)
+
+    # Fallback for local development
     addr = os.getenv("REDIS_ADDR", "localhost:6379")
+    print(f"  Using REDIS_ADDR: {addr}")
     host, port = addr.split(":")
     return redis.Redis(host=host, port=int(port), decode_responses=True)
 
