@@ -12,7 +12,7 @@ RUN go mod download
 COPY . .
 
 # Build the binary
-RUN go build -o api main.go
+RUN go build -o api .
 
 EXPOSE 8080
 CMD ["./api"]
