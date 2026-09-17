@@ -5,3 +5,5 @@ node_modules
 *.pycapi/api
 api/api
 frontend/.vercel
+.env
+*.env
