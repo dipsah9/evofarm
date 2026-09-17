@@ -35,6 +35,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 
 var ctx = context.Background()
 var rdb *redis.Client
+var db *DB
 
 type JobRequest struct {
     PopulationSize int    `json:"population_size"`
@@ -72,6 +73,20 @@ func main() {
 	}
 
 	rdb = redis.NewClient(opt)
+
+
+	// Connect to Postgres (Neon)
+	dbURL := getEnv("DATABASE_URL", "")
+	if dbURL != "" {
+		var err error
+		db, err = NewDB(ctx, dbURL)
+		if err != nil {
+			log.Fatal("Could not connect to Postgres:", err)
+		}
+		log.Println("Connected to Postgres")
+	} else {
+		log.Println("WARNING: DATABASE_URL not set — Postgres persistence disabled")
+	}
 
     // Test connection
     if err := rdb.Ping(ctx).Err(); err != nil {
@@ -150,6 +165,25 @@ func submitJob(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Failed to store job", http.StatusInternalServerError)
         return
     }
+
+	// Also write to Postgres for durability (fire-and-forget)
+	if db != nil {
+		if err := db.CreateJob(ctx, JobRecord{
+			ID:         jobID,
+			Problem:    req.Problem,
+			SolverType: req.SolverType,
+			Config: map[string]interface{}{
+				"population_size":    req.PopulationSize,
+				"generations":        req.Generations,
+				"fitness_function":   req.FitnessFunction,
+				"time_limit_seconds": req.TimeLimitSeconds,
+			},
+			Status: "pending",
+		}); err != nil {
+			// Log but don't fail the request — Redis is the source of truth
+			log.Printf("WARN: could not write job %s to Postgres: %v", jobID, err)
+		}
+	}
 
     // Push to queue for worker
     err = rdb.LPush(ctx, "job_queue", jobID).Err()
