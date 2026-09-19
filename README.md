@@ -1,3 +1,7 @@
+# 🧬 EvoFarm
+
+[![CI](https://github.com/dipsah9/evofarm/actions/workflows/ci.yml/badge.svg)](https://github.com/dipsah9/evofarm/actions/workflows/ci.yml)
+
 # EvoFarm --- Distributed Hybrid Optimization
 
 ### Submit a problem. Route it to the right solver. Watch it run.
