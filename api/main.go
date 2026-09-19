@@ -198,59 +198,95 @@ func submitJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func getJobStatus(w http.ResponseWriter, r *http.Request) {
-    vars := mux.Vars(r)
-    jobID := vars["id"]
+	vars := mux.Vars(r)
+	jobID := vars["id"]
 
-    data, err := rdb.HGetAll(ctx, "job:"+jobID).Result()
-    if err != nil || len(data) == 0 {
-        http.Error(w, "Job not found", http.StatusNotFound)
-        return
-    }
+	// Try Redis first (fast path — live jobs)
+	data, err := rdb.HGetAll(ctx, "job:"+jobID).Result()
+	if err == nil && len(data) > 0 {
+		writeJobFromRedis(w, jobID, data)
+		return
+	}
 
-    bestFitness, _ := strconv.ParseFloat(data["best_fitness"], 64)
-    progress, _ := strconv.ParseFloat(data["progress"], 64)
-    totalGenerations, _ := strconv.Atoi(data["total_generations"])
+	// Fall back to Postgres (durable history)
+	if db != nil {
+		job, err := db.GetJob(ctx, jobID)
+		if err == nil && job != nil {
+			writeJobFromPostgres(w, job)
+			return
+		}
+	}
 
-    // Parse history
-    var history []map[string]interface{}
-    if data["history"] != "" {
-        json.Unmarshal([]byte(data["history"]), &history)
-    }
+	http.Error(w, "Job not found", http.StatusNotFound)
+}
 
-    var bestIndividual interface{}
+// writeJobFromRedis renders a job from a Redis hash map.
+func writeJobFromRedis(w http.ResponseWriter, jobID string, data map[string]string) {
+	bestFitness, _ := strconv.ParseFloat(data["best_fitness"], 64)
+	progress, _ := strconv.ParseFloat(data["progress"], 64)
+	totalGenerations, _ := strconv.Atoi(data["total_generations"])
+
+	var history []map[string]interface{}
+	if data["history"] != "" {
+		json.Unmarshal([]byte(data["history"]), &history)
+	}
+
+	var bestIndividual interface{}
 	if data["best_individual"] != "" && data["best_individual"] != "[]" {
 		if err := json.Unmarshal([]byte(data["best_individual"]), &bestIndividual); err != nil {
-			log.Printf("Warning: could not parse best_individual: %v", err)
 			bestIndividual = []interface{}{}
 		}
 	} else {
 		bestIndividual = []interface{}{}
 	}
 
-    // Parse result metadata if present.
-    var resultMeta interface{}
-    if data["result_meta"] != "" {
-        if err := json.Unmarshal([]byte(data["result_meta"]), &resultMeta); err != nil {
-            resultMeta = map[string]interface{}{}
-        }
-    } else {
-        resultMeta = map[string]interface{}{}
-    }
+	var resultMeta interface{}
+	if data["result_meta"] != "" {
+		if err := json.Unmarshal([]byte(data["result_meta"]), &resultMeta); err != nil {
+			resultMeta = map[string]interface{}{}
+		}
+	} else {
+		resultMeta = map[string]interface{}{}
+	}
 
-    response := map[string]interface{}{
-        "job_id":           jobID,
-        "status":           data["status"],
-        "best_fitness":     bestFitness,
-        "progress":         progress,
-        "best_individual":  bestIndividual,
-        "history":          history,
-        "total_generations": totalGenerations,
-        "result_meta":      resultMeta,
-        "error":            data["error"],
-    }
+	response := map[string]interface{}{
+		"job_id":            jobID,
+		"status":            data["status"],
+		"best_fitness":      bestFitness,
+		"progress":          progress,
+		"best_individual":   bestIndividual,
+		"history":           history,
+		"total_generations": totalGenerations,
+		"result_meta":       resultMeta,
+		"error":             data["error"],
+	}
 
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(response)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// writeJobFromPostgres renders a job from a Postgres record.
+func writeJobFromPostgres(w http.ResponseWriter, job *JobRecord) {
+	// Completed jobs from Postgres are always 100% done
+	var progress float64 = 1.0
+	if job.Status != "completed" && job.Status != "failed" {
+		progress = 0.5 // running or pending
+	}
+
+	response := map[string]interface{}{
+		"job_id":            job.ID,
+		"status":            job.Status,
+		"best_fitness":      job.BestFitness,
+		"progress":          progress,
+		"best_individual":   job.BestIndividual,
+		"history":           job.History,
+		"total_generations": job.TotalGenerations,
+		"result_meta":       job.ResultMeta,
+		"error":             job.Error,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func listJobHistory(w http.ResponseWriter, r *http.Request) {
