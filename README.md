@@ -494,6 +494,46 @@ The frontend reads the API URL from `REACT_APP_API_URL`:
 REACT_APP_API_URL=http://localhost:8080
 ```
 
+### Postgres persistence
+
+EvoFarm uses Postgres as the durable job-history store and Redis as the
+live queue and execution-state store.
+
+When a job is submitted, the API first writes its pending state to Redis
+and then attempts to insert a matching row into the Postgres `jobs` table.
+The Redis write remains authoritative for queueing, so a Postgres write
+failure is logged without rejecting an otherwise valid job submission.
+When a worker starts, completes, or fails a job, it updates the matching
+Postgres row with the solver, result, history, metadata, or error.
+
+Postgres persistence is optional for local development. If `DATABASE_URL`
+is not set, the API and worker continue using Redis only:
+
+``` bash
+DATABASE_URL=postgresql://user:password@host:5432/database
+```
+
+For a configured Postgres database, apply the schema before starting the
+API and workers:
+
+``` bash
+psql "$DATABASE_URL" -f docs/schema.sql
+docker compose up --build
+```
+
+The schema creates:
+
+-   `jobs`, which stores the problem, solver type, configuration, status,
+    fitness, solution payload, fitness history, result metadata, errors,
+    and timestamps.
+-   `users`, reserved for future authentication and multi-user ownership.
+-   Indexes for user, status, and newest-job queries.
+-   An `updated_at` trigger for tracking job changes.
+
+The worker uses short-lived `psycopg` connections for persistence and
+continues processing jobs if a database update fails. Redis-backed status
+is still available through `GET /jobs/{id}` during the live run.
+
 ## Project Structure
 
 ``` text
@@ -512,6 +552,7 @@ REACT_APP_API_URL=http://localhost:8080
 │       └── ScheduleGrid.js
 ├── worker/
 │   ├── Dockerfile
+│   ├── db.py
 │   ├── main.py
 │   ├── environments/
 │   │   └── xor.py
@@ -524,6 +565,7 @@ REACT_APP_API_URL=http://localhost:8080
 ├── shared/
 │   └── types.py
 ├── docs/
+│   ├── schema.sql
 │   └── research/
 ├── docker-compose.yml
 ├── test_xor.py
