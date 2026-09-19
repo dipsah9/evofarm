@@ -225,7 +225,7 @@ function App() {
             <h2>📚 Job History</h2>
             <JobHistory onSelectJob={(id) => {
                 setSelectedJobId(id);
-                setActiveTab('submit');
+                //setActiveTab('submit');
             }} />
             </div>
         )}

@@ -116,3 +116,42 @@ func (d *DB) ListJobs(ctx context.Context, limit int) ([]JobRecord, error) {
 	}
 	return jobs, nil
 }
+
+// GetJob returns a single job from Postgres by ID.
+func (d *DB) GetJob(ctx context.Context, id string) (*JobRecord, error) {
+	var j JobRecord
+	var configJSON, bestIndJSON, historyJSON, metaJSON []byte
+	var createdAt, updatedAt time.Time
+	var completedAt *time.Time
+
+	err := d.pool.QueryRow(ctx, `
+		SELECT id, user_id, problem, solver_type, config, status,
+		       best_fitness, best_individual, history, total_generations,
+		       result_meta, error, created_at, updated_at, completed_at
+		FROM jobs
+		WHERE id = $1
+	`, id).Scan(
+		&j.ID, &j.UserID, &j.Problem, &j.SolverType, &configJSON, &j.Status,
+		&j.BestFitness, &bestIndJSON, &historyJSON, &j.TotalGenerations,
+		&metaJSON, &j.Error, &createdAt, &updatedAt, &completedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse JSONB columns into Go values
+	if configJSON != nil {
+		json.Unmarshal(configJSON, &j.Config)
+	}
+	if bestIndJSON != nil {
+		json.Unmarshal(bestIndJSON, &j.BestIndividual)
+	}
+	if historyJSON != nil {
+		json.Unmarshal(historyJSON, &j.History)
+	}
+	if metaJSON != nil {
+		json.Unmarshal(metaJSON, &j.ResultMeta)
+	}
+
+	return &j, nil
+}
