@@ -13,6 +13,7 @@ import {
   Filler
 } from 'chart.js';
 import './App.css';
+import JobHistory from './JobHistory';
 import ScheduleGrid from './ScheduleGrid';
 
 // Register Chart.js components
@@ -27,9 +28,12 @@ ChartJS.register(
   Filler
 );
 
+
+
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 function App() {
+  const [activeTab, setActiveTab] = useState('submit'); // 'submit' | 'history'
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState(null);
@@ -122,11 +126,29 @@ function App() {
 
       <div className="container">
         {/* Left Column: Submit Form + Job List */}
-        <div className="sidebar">
-          <div className="card">
-            <h2>Submit Job</h2>
-            <form onSubmit={submitJob}>
-            <div className="form-group">
+                <div className="sidebar">
+        <div className="tab-bar">
+            <button
+            className={`tab ${activeTab === 'submit' ? 'active' : ''}`}
+            onClick={() => setActiveTab('submit')}
+            >
+            New Job
+            </button>
+            <button
+            className={`tab ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveTab('history')}
+            >
+            History
+            </button>
+        </div>
+
+        {activeTab === 'submit' && (
+            <>
+            <div className="card">
+                <h2> Submit Job</h2>
+                <form onSubmit={submitJob}>
+                {/* ... existing form content ... */}
+                <div className="form-group">
                 <label>Problem</label>
                 <select
                 value={formData.problem}
@@ -174,27 +196,39 @@ function App() {
             <button type="submit" disabled={loading}>
                 {loading ? 'Submitting...' : ' Start Job'}
             </button>
-            </form>
-          </div>
-
-          <div className="card">
-            <h2>📋 Jobs</h2>
-            <div className="job-list">
-              {jobs.length === 0 ? (
-                <p className="empty-state">No jobs yet. Submit one above!</p>
-              ) : (
-                jobs.map((job) => (
-                  <JobListItem
-                    key={job.id}
-                    jobId={job.id}
-                    initialStatus={job.status}
-                    isSelected={selectedJobId === job.id}
-                    onClick={() => setSelectedJobId(job.id)}
-                  />
-                ))
-              )}
+                </form>
             </div>
-          </div>
+
+            <div className="card">
+                <h2>📋 Recent Jobs</h2>
+                <div className="job-list">
+                {jobs.length === 0 ? (
+                    <p className="empty-state">No jobs yet. Submit one above!</p>
+                ) : (
+                    jobs.map((job) => (
+                    <JobListItem
+                        key={job.id}
+                        jobId={job.id}
+                        initialStatus={job.status}
+                        isSelected={selectedJobId === job.id}
+                        onClick={() => setSelectedJobId(job.id)}
+                    />
+                    ))
+                )}
+                </div>
+            </div>
+            </>
+        )}
+
+        {activeTab === 'history' && (
+            <div className="card">
+            <h2>📚 Job History</h2>
+            <JobHistory onSelectJob={(id) => {
+                setSelectedJobId(id);
+                setActiveTab('submit');
+            }} />
+            </div>
+        )}
         </div>
 
         {/* Right Column: Selected Job Detail with Chart */}
