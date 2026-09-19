@@ -54,6 +54,17 @@ job storage, observability, and autoscaling remain future work.
 *Evolution optimizing a portfolio allocation to maximize Sharpe ratio.
 Converges to 0.812 in 50 generations — beating brute-force local search (0.789).*
 
+### Job History
+
+Every job is persisted in Postgres. The History tab shows the full
+audit trail — click any row to reload the job's fitness chart, evolved
+weights, or schedule.
+
+![History tab](docs/screenshots/dashboard_history.png)
+
+*Postgres-backed history. Jobs survive Redis flushes, worker restarts,
+and redeployments.*
+
 ## Try the deployed app
 
 Open the [EvoFarm dashboard](https://evofarm.vercel.app/) to submit a job
