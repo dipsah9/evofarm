@@ -13,6 +13,7 @@ import time
 import routing
 
 import redis
+import db
 
 # Local imports
 from solvers import evolution
@@ -208,6 +209,8 @@ def process_job(r: redis.Redis, job_id: str) -> None:
         "solver_type": solver_type,
     })
 
+    db.mark_running(job_id, solver_type)
+
     try:
         if solver_type == "evolution":
             # If the problem is known and fitness_function is missing/empty,
@@ -222,8 +225,17 @@ def process_job(r: redis.Redis, job_id: str) -> None:
         else:
             raise ValueError(f"Unknown solver_type: {solver_type}")
 
+        # After either solver finishes, persist the final state to Postgres.
+        # This runs for evolution AND cpsat jobs.
+        final = r.hgetall(f"job:{job_id}")
+        db.mark_completed(job_id, {
+            "best_fitness": float(final.get("best_fitness", 0) or 0),
+            "best_individual": json.loads(final.get("best_individual", "[]") or "[]"),
+            "history": json.loads(final.get("history", "[]") or "[]"),
+            "total_generations": int(final.get("total_generations", 0) or 0),
+            "result_meta": json.loads(final.get("result_meta", "{}") or "{}"),
+        })
         print(f"Job {job_id} complete")
-
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         print(f"Job {job_id} FAILED: {error_msg}")
@@ -232,6 +244,7 @@ def process_job(r: redis.Redis, job_id: str) -> None:
             "status": "failed",
             "error": error_msg,
         })
+        db.mark_failed(job_id, error_msg)
 
 # ---------- Main loop ----------
 
@@ -240,6 +253,7 @@ def main() -> None:
     print("=" * 60)
     print("EvoFarm worker started")
     print(f"  Redis: {os.getenv('REDIS_ADDR', 'localhost:6379')}")
+    print(f"  Postgres: {'connected' if db.is_enabled() else 'disabled (no DATABASE_URL)'}")
     print(f"  Solvers: {list(SOLVERS.keys())}")
     print(f"  Routing: {routing.ROUTING}")
     print("=" * 60)

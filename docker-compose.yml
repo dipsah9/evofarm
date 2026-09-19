@@ -14,6 +14,7 @@ services:
       - redis
     environment:
       - REDIS_ADDR=redis:6379
+      - DATABASE_URL=${DATABASE_URL}
     restart: unless-stopped
 
   worker:
@@ -22,6 +23,7 @@ services:
       - redis
     environment:
       - REDIS_ADDR=redis:6379
+      - DATABASE_URL=${DATABASE_URL}
     restart: unless-stopped
     deploy:
       replicas: 2
