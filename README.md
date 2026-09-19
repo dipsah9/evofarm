@@ -1,6 +1,6 @@
 # 🧬 EvoFarm
 
-[![CI](https://github.com/dipsah9/evofarm/actions/workflows/ci.yml/badge.svg)](https://github.com/dipsah9/evofarm/actions/workflows/ci.yml)
+[![CI](https://github.com/dipsah9/evofarm/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dipsah9/evofarm/actions/workflows/ci.yml)
 
 # EvoFarm --- Distributed Hybrid Optimization
 
