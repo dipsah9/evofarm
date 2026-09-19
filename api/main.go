@@ -94,13 +94,19 @@ func main() {
     }
     log.Println("Connected to Redis")
 
-    // Setup router
     r := mux.NewRouter()
+	r.Use(corsMiddleware)
+
+	// Load rate-limit config and log it once at startup
+	rateCfg := LoadRateLimitConfig()
+	log.Printf("Rate limit: %d requests per %s per IP", rateCfg.MaxRequests, rateCfg.Window)
+
+	r.HandleFunc("/jobs", rateLimitMiddleware(rateCfg)(http.HandlerFunc(submitJob)).ServeHTTP).Methods("POST")
+	r.HandleFunc("/jobs/{id}", getJobStatus).Methods("GET")
 	r.HandleFunc("/jobs/history", listJobHistory).Methods("GET")
-    r.HandleFunc("/jobs", submitJob).Methods("POST")
-    r.HandleFunc("/jobs/{id}", getJobStatus).Methods("GET")
-    r.HandleFunc("/health", healthCheck).Methods("GET")
 	r.HandleFunc("/problems", listProblems).Methods("GET")
+	r.HandleFunc("/rate-limit-status", rateLimitStatusHandler(rateCfg)).Methods("GET")
+	r.HandleFunc("/health", healthCheck).Methods("GET")
 
     log.Println("API listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(r)))
