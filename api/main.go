@@ -96,6 +96,7 @@ func main() {
 
     // Setup router
     r := mux.NewRouter()
+	r.HandleFunc("/jobs/history", listJobHistory).Methods("GET")
     r.HandleFunc("/jobs", submitJob).Methods("POST")
     r.HandleFunc("/jobs/{id}", getJobStatus).Methods("GET")
     r.HandleFunc("/health", healthCheck).Methods("GET")
@@ -250,6 +251,58 @@ func getJobStatus(w http.ResponseWriter, r *http.Request) {
 
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(response)
+}
+
+func listJobHistory(w http.ResponseWriter, r *http.Request) {
+	if db == nil {
+		http.Error(w, "History not available (Postgres not configured)",
+			http.StatusServiceUnavailable)
+		return
+	}
+
+	// Parse limit (default 50, max 200)
+	limitStr := r.URL.Query().Get("limit")
+	limit := 50
+	if limitStr != "" {
+		if n, err := strconv.Atoi(limitStr); err == nil && n > 0 {
+			limit = n
+			if limit > 200 {
+				limit = 200
+			}
+		}
+	}
+
+	jobs, err := db.ListJobs(ctx, limit)
+	if err != nil {
+		log.Printf("Error listing jobs: %v", err)
+		http.Error(w, "Failed to list jobs", http.StatusInternalServerError)
+		return
+	}
+
+	// Convert to a stable JSON shape
+	type JobSummary struct {
+		ID               string   `json:"id"`
+		Problem          string   `json:"problem"`
+		SolverType       string   `json:"solver_type"`
+		Status           string   `json:"status"`
+		BestFitness      *float64 `json:"best_fitness"`
+		TotalGenerations *int     `json:"total_generations"`
+	}
+
+	out := make([]JobSummary, 0, len(jobs))
+	for _, j := range jobs {
+		out = append(out, JobSummary{
+			ID:               j.ID,
+			Problem:          j.Problem,
+			SolverType:       j.SolverType,
+			Status:           j.Status,
+			BestFitness:      j.BestFitness,
+			TotalGenerations: j.TotalGenerations,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(out)
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
