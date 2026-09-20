@@ -102,6 +102,10 @@ func main() {
     r.HandleFunc("/health", healthCheck).Methods("GET")
 	r.HandleFunc("/problems", listProblems).Methods("GET")
 
+	r.HandleFunc("/auth/register", registerHandler).Methods("POST")
+	r.HandleFunc("/auth/login", loginHandler).Methods("POST")
+	r.HandleFunc("/auth/me", meHandler).Methods("GET")
+
     log.Println("API listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(r)))
 }
