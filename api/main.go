@@ -94,7 +94,6 @@ func main() {
     }
     log.Println("Connected to Redis")
 
-    // Setup router
     r := mux.NewRouter()
 	// Public routes
 	r.HandleFunc("/auth/register", registerHandler).Methods("POST")
