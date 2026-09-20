@@ -102,12 +102,19 @@ func checkRateLimit(ctx context.Context, rdb *redis.Client, key string, cfg Rate
 	return true, remaining, 0
 }
 
-// rateLimitMiddleware wraps a handler and enforces per-IP rate limits.
+// rateLimitMiddleware wraps a handler and enforces per-user (or per-IP) rate limits.
 func rateLimitMiddleware(cfg RateLimitConfig) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip := extractClientIP(r)
-			key := fmt.Sprintf("rate:job:%s", ip)
+			// Prefer authenticated user ID for rate limiting.
+			// Fall back to IP for unauthenticated requests.
+			var key string
+			if userID := getUserID(r); userID != "" {
+				key = fmt.Sprintf("rate:job:user:%s", userID)
+			} else {
+				ip := extractClientIP(r)
+				key = fmt.Sprintf("rate:job:ip:%s", ip)
+			}
 
 			allowed, remaining, retryAfter := checkRateLimit(r.Context(), rdb, key, cfg)
 

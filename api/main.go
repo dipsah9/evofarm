@@ -43,6 +43,7 @@ type JobRequest struct {
     FitnessFunction string `json:"fitness_function"`
     SolverType      string `json:"solver_type"`
     Problem         string  `json:"problem"`
+	Config           map[string]interface{} `json:"config"`
     TimeLimitSeconds float64 `json:"time_limit_seconds"`
 }
 
@@ -95,6 +96,10 @@ func main() {
     log.Println("Connected to Redis")
 
     r := mux.NewRouter()
+	r.Use(corsMiddleware)
+
+	rateCfg := LoadRateLimitConfig()
+	log.Printf("Rate limit: %d requests per %s per IP", rateCfg.MaxRequests, rateCfg.Window)
 	// Public routes
 	r.HandleFunc("/auth/register", registerHandler).Methods("POST")
 	r.HandleFunc("/auth/login", loginHandler).Methods("POST")
