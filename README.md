@@ -19,8 +19,9 @@ containerized deployment across Vercel and Fly.io.
 
 EvoFarm is currently an open-source engineering prototype and research
 platform. It has a working deployed path, but it is not yet a hardened
-multi-tenant production service: authentication, authorization, durable
-job storage, observability, and autoscaling remain future work.
+multi-tenant production service. Authentication is implemented in the Go
+API layer and is being integrated into the public job flow; observability
+and autoscaling remain future work.
 
 ## What it demonstrates
 
@@ -30,6 +31,8 @@ job storage, observability, and autoscaling remain future work.
   independent Python workers.
 -   **Live observability:** the dashboard polls job state, fitness history,
   solver metadata, and generated nurse schedules.
+-   **Authentication foundation:** bcrypt password hashing, JWT access
+  tokens, Bearer-token parsing, and authenticated-user context support.
 -   **Two reference workloads:** XOR neuroevolution and nurse rostering
   with coverage, consecutive-work, and night-rest constraints.
 -   **Benchmark tooling:** CP-SAT instances can be run locally with CSV and
@@ -68,6 +71,27 @@ weights, or schedule.
 
 *Postgres-backed history. Jobs survive Redis flushes, worker restarts,
 and redeployments.*
+
+### Authentication
+
+The API includes an authentication layer implemented in `api/auth.go`:
+
+-   Passwords are hashed with bcrypt using cost 12 and are never stored in
+  plaintext.
+-   Successful registration and login issue an HMAC-SHA256 JWT.
+-   Tokens contain the user ID (`sub`), email, issue time, and a 24-hour
+  expiration.
+-   Protected handlers read tokens from
+  `Authorization: Bearer <token>` and can access the authenticated user
+  ID through request context.
+-   Login failures return a generic `invalid credentials` response rather
+  than revealing whether an email exists.
+
+The current source includes registration, login, profile, and middleware
+handlers. Before enabling them in a deployment, configure `JWT_SECRET`,
+apply the user schema, and register the routes in `api/main.go`. The
+checked-in job routes remain usable independently while this integration
+is completed.
 
 ## Try the deployed app
 
@@ -376,6 +400,22 @@ The status response includes:
 `result_meta` contains solver-specific metadata such as problem name,
 solve status, solve time, and schedule dimensions.
 
+## Authentication Configuration
+
+Set a strong, private signing secret in the API environment:
+
+``` bash
+JWT_SECRET=replace-with-a-long-random-secret
+```
+
+Never commit `JWT_SECRET` to the repository or expose it to the frontend.
+The API exits at startup if token generation or validation is attempted
+without this setting.
+
+The authentication implementation expects the `users` table to contain
+`email`, `password_hash`, and `name` columns. Extend `docs/schema.sql`
+before enabling registration and login in a fresh database.
+
 ## Evolutionary Solver
 
 The current Evolution worker evolves a **2-4-1 feedforward neural
@@ -480,7 +520,10 @@ notes.
 -   [ ] CartPole and Flappy Bird environments
 -   [ ] Distributed population evaluation
 -   [ ] Solver portfolio orchestration
--   [ ] Authentication and multi-tenancy
+-   [x] Authentication foundation: bcrypt passwords and JWTs
+-   [ ] Wire authentication routes and protect job endpoints
+-   [ ] Associate jobs with authenticated users and enforce ownership
+-   [ ] Multi-tenancy, roles, and account management
 -   [ ] Kubernetes deployment with auto-scaling
 -   [ ] Experiment tracking and reproducibility
 -   [ ] Hybrid evolutionary + constraint optimization
@@ -541,7 +584,8 @@ The schema creates:
 -   `jobs`, which stores the problem, solver type, configuration, status,
     fitness, solution payload, fitness history, result metadata, errors,
     and timestamps.
--   `users`, reserved for future authentication and multi-user ownership.
+-   `users`, which supports the authentication foundation and is intended
+  to become the basis for multi-user ownership.
 -   Indexes for user, status, and newest-job queries.
 -   An `updated_at` trigger for tracking job changes.
 
