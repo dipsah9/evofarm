@@ -96,85 +96,102 @@ func main() {
 
     // Setup router
     r := mux.NewRouter()
-	r.HandleFunc("/jobs/history", listJobHistory).Methods("GET")
-    r.HandleFunc("/jobs", submitJob).Methods("POST")
-    r.HandleFunc("/jobs/{id}", getJobStatus).Methods("GET")
-    r.HandleFunc("/health", healthCheck).Methods("GET")
-	r.HandleFunc("/problems", listProblems).Methods("GET")
-
+	// Public routes
 	r.HandleFunc("/auth/register", registerHandler).Methods("POST")
 	r.HandleFunc("/auth/login", loginHandler).Methods("POST")
-	r.HandleFunc("/auth/me", meHandler).Methods("GET")
+	r.HandleFunc("/health", healthCheck).Methods("GET")
+	r.HandleFunc("/problems", listProblems).Methods("GET")
 
+	// Authenticated routes
+	r.HandleFunc("/auth/me", meHandler).Methods("GET")
+	r.HandleFunc("/jobs/history", authMiddleware(http.HandlerFunc(listJobHistory)).ServeHTTP).Methods("GET")
+	r.HandleFunc("/jobs/{id}", authMiddleware(http.HandlerFunc(getJobStatus)).ServeHTTP).Methods("GET")
+	r.HandleFunc("/jobs", authMiddleware(rateLimitMiddleware(rateCfg)(http.HandlerFunc(submitJob))).ServeHTTP).Methods("POST")
+	r.HandleFunc("/rate-limit-status", authMiddleware(http.HandlerFunc(rateLimitStatusHandler(rateCfg))).ServeHTTP).Methods("GET")
     log.Println("API listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(r)))
 }
 
 func submitJob(w http.ResponseWriter, r *http.Request) {
-    var req JobRequest
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        http.Error(w, err.Error(), http.StatusBadRequest)
-        return
-    }
+	userID := getUserID(r)
+	if userID == "" {
+		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
 
-    // Validate
-    if req.PopulationSize == 0 {
-        req.PopulationSize = 100
-    }
-    if req.Generations == 0 {
-        req.Generations = 50
-    }
-    
-	// If user provides a problem but no solver, leave solver empty —
-	// the worker will route. This is the new preferred flow.
-	// If user provides neither, fall back to evolution+xor for backward compat.
-	if req.SolverType == "" && req.Problem == "" {
-		req.SolverType = "evolution"
+	var req JobRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Validate
+	if req.PopulationSize == 0 {
+		req.PopulationSize = 100
+	}
+	if req.Generations == 0 {
+		req.Generations = 50
+	}
+	if req.FitnessFunction == "" && req.Problem == "" {
 		req.FitnessFunction = "xor"
 	}
-	if req.TimeLimitSeconds == 0 {
-		req.TimeLimitSeconds = 30
+
+	// Generate unique job ID
+	bytes := make([]byte, 16)
+	rand.Read(bytes)
+	jobID := hex.EncodeToString(bytes)
+
+	// Create job data
+	job := JobStatus{
+		JobID:       jobID,
+		Status:      "pending",
+		BestFitness: 0,
+		Progress:    0,
 	}
-    
 
-    // Generate unique job ID
-    bytes := make([]byte, 16)
-    rand.Read(bytes)
-    jobID := hex.EncodeToString(bytes)
+	// Convert config to JSON string (for CP-SAT problems)
+	configJSON := "{}"
+	if req.Config != nil {
+		if bytes, err := json.Marshal(req.Config); err == nil {
+			configJSON = string(bytes)
+		}
+	}
 
-    // Create job data
-    job := JobStatus{
-        JobID:   jobID,
-        Status:  "pending",
-        BestFitness: 0,
-        Progress: 0,
-    }
+	// Store job in Redis as hash
+	jobData := map[string]interface{}{
+		"status":             job.Status,
+		"best_fitness":       job.BestFitness,
+		"progress":           job.Progress,
+		"population_size":    req.PopulationSize,
+		"generations":        req.Generations,
+		"fitness_function":   req.FitnessFunction,
+		"solver_type":        req.SolverType,
+		"problem":            req.Problem,
+		"config":             configJSON,
+		"time_limit_seconds": req.TimeLimitSeconds,
+		"user_id":            userID,
+		"best_individual":    "[]",
+		"error":              "",
+	}
 
-    // Store job in Redis as hash
-    jobData := map[string]interface{}{
-        "status":          job.Status,
-        "best_fitness":    job.BestFitness,
-        "progress":        job.Progress,
-        "population_size": req.PopulationSize,
-        "generations":     req.Generations,
-        "fitness_function": req.FitnessFunction,
-        "solver_type":      req.SolverType,
-        "problem":          req.Problem,
-        "time_limit_seconds": req.TimeLimitSeconds,
-        "best_individual": "[]",
-        "error":           "",
-    }
+	err := rdb.HSet(ctx, "job:"+jobID, jobData).Err()
+	if err != nil {
+		http.Error(w, "Failed to store job", http.StatusInternalServerError)
+		return
+	}
 
-    err := rdb.HSet(ctx, "job:"+jobID, jobData).Err()
-    if err != nil {
-        http.Error(w, "Failed to store job", http.StatusInternalServerError)
-        return
-    }
+	// Push to queue for worker
+	err = rdb.LPush(ctx, "job_queue", jobID).Err()
+	if err != nil {
+		http.Error(w, "Failed to queue job", http.StatusInternalServerError)
+		return
+	}
 
 	// Also write to Postgres for durability (fire-and-forget)
 	if db != nil {
 		if err := db.CreateJob(ctx, JobRecord{
 			ID:         jobID,
+			UserID:     &userID,
 			Problem:    req.Problem,
 			SolverType: req.SolverType,
 			Config: map[string]interface{}{
@@ -185,43 +202,48 @@ func submitJob(w http.ResponseWriter, r *http.Request) {
 			},
 			Status: "pending",
 		}); err != nil {
-			// Log but don't fail the request — Redis is the source of truth
 			log.Printf("WARN: could not write job %s to Postgres: %v", jobID, err)
 		}
 	}
 
-    // Push to queue for worker
-    err = rdb.LPush(ctx, "job_queue", jobID).Err()
-    if err != nil {
-        http.Error(w, "Failed to queue job", http.StatusInternalServerError)
-        return
-    }
-
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]string{"job_id": jobID, "status": "pending"})
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"job_id": jobID, "status": "pending"})
 }
 
 func getJobStatus(w http.ResponseWriter, r *http.Request) {
+	userID := getUserID(r)
+	if userID == "" {
+		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+
 	vars := mux.Vars(r)
 	jobID := vars["id"]
 
 	// Try Redis first (fast path — live jobs)
 	data, err := rdb.HGetAll(ctx, "job:"+jobID).Result()
 	if err == nil && len(data) > 0 {
+		// Verify ownership — if the job has a user_id, it must match.
+		// Jobs without a user_id (legacy) are visible to any authenticated caller.
+		jobOwner := data["user_id"]
+		if jobOwner != "" && jobOwner != userID {
+			http.Error(w, "job not found", http.StatusNotFound)
+			return
+		}
 		writeJobFromRedis(w, jobID, data)
 		return
 	}
 
 	// Fall back to Postgres (durable history)
 	if db != nil {
-		job, err := db.GetJob(ctx, jobID)
+		job, err := db.GetJobForUser(ctx, jobID, userID)
 		if err == nil && job != nil {
 			writeJobFromPostgres(w, job)
 			return
 		}
 	}
 
-	http.Error(w, "Job not found", http.StatusNotFound)
+	http.Error(w, "job not found", http.StatusNotFound)
 }
 
 // writeJobFromRedis renders a job from a Redis hash map.
@@ -294,6 +316,12 @@ func writeJobFromPostgres(w http.ResponseWriter, job *JobRecord) {
 }
 
 func listJobHistory(w http.ResponseWriter, r *http.Request) {
+	userID := getUserID(r)
+	if userID == "" {
+		http.Error(w, "authentication required", http.StatusUnauthorized)
+		return
+	}
+
 	if db == nil {
 		http.Error(w, "History not available (Postgres not configured)",
 			http.StatusServiceUnavailable)
@@ -312,7 +340,7 @@ func listJobHistory(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	jobs, err := db.ListJobs(ctx, limit)
+	jobs, err := db.ListJobs(ctx, userID, limit)
 	if err != nil {
 		log.Printf("Error listing jobs: %v", err)
 		http.Error(w, "Failed to list jobs", http.StatusInternalServerError)
