@@ -1,12 +1,26 @@
 -- EvoFarm database schema
 -- Run against Neon with: psql $DATABASE_URL -f docs/schema.sql
 
--- Users table (used later for auth)
-CREATE TABLE IF NOT EXISTS users (
+-- Users table
+DROP TABLE IF EXISTS users CASCADE;
+
+CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    password_hash TEXT NOT NULL,
+    name TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX idx_users_email ON users(email);
+
+-- Auto-update updated_at on users
+DROP TRIGGER IF EXISTS users_updated_at ON users;
+CREATE TRIGGER users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at();
 
 -- Jobs table (durable history)
 CREATE TABLE IF NOT EXISTS jobs (
@@ -48,3 +62,16 @@ CREATE TRIGGER jobs_updated_at
     BEFORE UPDATE ON jobs
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
+
+
+-- Ensure the FK exists (idempotent)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'jobs_user_id_fkey'
+    ) THEN
+        ALTER TABLE jobs
+            ADD CONSTRAINT jobs_user_id_fkey
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
+END $$;
