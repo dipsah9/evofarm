@@ -7,3 +7,4 @@ api/api
 frontend/.vercel
 .env
 *.env
+frontend/build/
