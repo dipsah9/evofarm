@@ -56,7 +56,6 @@ and autoscaling remain future work.
 
 ![Portfolio allocation bars showing 33% real estate, 24% corporate bonds](docs/screenshots/dashboard_portfolio.png)
 
-*Evolution optimizing an 8-asset portfolio — converges to Sharpe 0.812 in 50 generations.*
 
 *Evolution optimizing a portfolio allocation to maximize Sharpe ratio.
 Converges to 0.812 in 50 generations — beating brute-force local search (0.789).*
@@ -72,26 +71,25 @@ weights, or schedule.
 *Postgres-backed history. Jobs survive Redis flushes, worker restarts,
 and redeployments.*
 
-### Authentication
+## Authentication
 
-The API includes an authentication layer implemented in `api/auth.go`:
+EvoFarm ships with full JWT authentication in production:
 
--   Passwords are hashed with bcrypt using cost 12 and are never stored in
-  plaintext.
--   Successful registration and login issue an HMAC-SHA256 JWT.
--   Tokens contain the user ID (`sub`), email, issue time, and a 24-hour
-  expiration.
--   Protected handlers read tokens from
-  `Authorization: Bearer <token>` and can access the authenticated user
-  ID through request context.
--   Login failures return a generic `invalid credentials` response rather
-  than revealing whether an email exists.
+-   **Registration & login** at `POST /auth/register` and `POST /auth/login`
+-   **Passwords hashed with bcrypt** (cost 12), never stored in plaintext
+-   **HMAC-SHA256 JWTs** with 24-hour expiry containing the user ID
+-   **Bearer-token authentication** via `Authorization: Bearer <token>`
+-   **Protected job endpoints** — `POST /jobs`, `GET /jobs/{id}`, and
+  `GET /jobs/history` all require a valid token
+-   **Per-user isolation** — users only see their own jobs; cross-user
+  access returns 404
+-   **Generic login errors** — the API never reveals whether an email
+  exists
+-   **Frontend auth flow** — login/register pages, protected routes,
+  persistent sessions in `localStorage`
 
-The current source includes registration, login, profile, and middleware
-handlers. Before enabling them in a deployment, configure `JWT_SECRET`,
-apply the user schema, and register the routes in `api/main.go`. The
-checked-in job routes remain usable independently while this integration
-is completed.
+The dashboard at [evofarm.vercel.app](https://evofarm.vercel.app)
+requires registration before submitting jobs.
 
 ## Try the deployed app
 
@@ -521,8 +519,8 @@ notes.
 -   [ ] Distributed population evaluation
 -   [ ] Solver portfolio orchestration
 -   [x] Authentication foundation: bcrypt passwords and JWTs
--   [ ] Wire authentication routes and protect job endpoints
--   [ ] Associate jobs with authenticated users and enforce ownership
+-   [x] Wire authentication routes and protect job endpoints
+-   [x] Associate jobs with authenticated users and enforce ownership
 -   [ ] Multi-tenancy, roles, and account management
 -   [ ] Kubernetes deployment with auto-scaling
 -   [ ] Experiment tracking and reproducibility
