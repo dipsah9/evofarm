@@ -6,7 +6,7 @@
 
 ### Submit a problem. Route it to the right solver. Watch it run.
 
-**[Live demo](https://evofarm.vercel.app/)** · **[API](https://evofarm-api.fly.dev/)**
+**[Live demo](https://evofarm.vercel.app/)** · **[API](https://evofarm-api.fly.dev/health)**
 
 EvoFarm is a hybrid optimization platform for running evolutionary and
 constraint-based workloads through one distributed job interface. Users
