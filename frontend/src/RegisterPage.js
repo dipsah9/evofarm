@@ -38,7 +38,7 @@ function RegisterPage() {
       <div className="auth-hero">
         <div className="auth-hero-inner">
          <div className="auth-hero-logo-wrap">
-        <DnaLogo size={56} speed={14} />
+        <DnaLogo size={56} speed={18} />
         <h1 className="auth-hero-logo">EvoFarm</h1>
         </div>
           <p className="auth-hero-tagline">

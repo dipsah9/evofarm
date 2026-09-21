@@ -84,8 +84,14 @@
 
 /* The bar scales as the strands cross */
 @keyframes dna-bar-pulse {
-  0%, 100% { opacity: 0.6; transform: scaleX(1); }
-  50%      { opacity: 0.2; transform: scaleX(0.4); }
+  0%, 100% { 
+    opacity: 0.4; 
+    transform: scaleX(0.6); 
+  }
+  50%      { 
+    opacity: 0.15; 
+    transform: scaleX(0.3); 
+  }
 }
 
 /* Accessibility */
