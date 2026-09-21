@@ -33,50 +33,94 @@ function RegisterPage() {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <h1 className="auth-logo">🧬 EvoFarm</h1>
-        <p className="auth-subtitle">Create your account</p>
+    <div className="auth-layout">
+      <div className="auth-hero">
+        <div className="auth-hero-inner">
+          <h1 className="auth-hero-logo">🧬 EvoFarm</h1>
+          <p className="auth-hero-tagline">
+            Create an account to submit neuroevolution and constraint
+            optimization jobs — and watch them solve in real time.
+          </p>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Name (optional)</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoFocus
-            />
+          <ul className="auth-hero-features">
+            <li>
+              <strong>Free to use.</strong> No credit card, no
+              commitment.
+            </li>
+            <li>
+              <strong>Your jobs, your data.</strong> Only you can see
+              your history.
+            </li>
+            <li>
+              <strong>Built with Go, Python, React.</strong> Open
+              source on GitHub.
+            </li>
+          </ul>
+
+          <div className="auth-hero-footer">
+            <a
+              href="https://github.com/dipsah9/evofarm"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="auth-hero-link"
+            >
+              View source on GitHub →
+            </a>
           </div>
-          <div className="form-group">
-            <label>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Password (min 8 characters)</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
+        </div>
+      </div>
 
-          {error && <div className="auth-error">{error}</div>}
+      <div className="auth-form-panel">
+        <div className="auth-card">
+          <h2 className="auth-title">Create your account</h2>
+          <p className="auth-subtitle">
+            Takes 10 seconds. No credit card required.
+          </p>
 
-          <button type="submit" disabled={loading}>
-            {loading ? 'Creating account...' : 'Create Account'}
-          </button>
-        </form>
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label>Name <span className="optional">(optional)</span></label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoFocus
+                placeholder="Your name"
+              />
+            </div>
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="you@example.com"
+              />
+            </div>
+            <div className="form-group">
+              <label>Password <span className="optional">(min 8 characters)</span></label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+              />
+            </div>
 
-        <p className="auth-footer">
-          Already have an account? <Link to="/login">Sign in</Link>
-        </p>
+            {error && <div className="auth-error">{error}</div>}
+
+            <button type="submit" disabled={loading}>
+              {loading ? 'Creating account...' : 'Create Account'}
+            </button>
+          </form>
+
+          <p className="auth-footer">
+            Already have an account?{' '}
+            <Link to="/login">Sign in</Link>
+          </p>
+        </div>
       </div>
     </div>
   );
