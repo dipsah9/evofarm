@@ -1,8 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
-
+import api from './api';
 function JobHistory({ onSelectJob }) {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,7 +8,7 @@ function JobHistory({ onSelectJob }) {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await axios.get(`${API_URL}/jobs/history?limit=50`);
+        const res = await api.get('/jobs/history?limit=50');
         setJobs(res.data);
         setError('');
       } catch (err) {
@@ -39,18 +36,6 @@ function JobHistory({ onSelectJob }) {
       case 'pending': return '⏳';
       default: return '·';
     }
-  };
-
-  const formatDate = (iso) => {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    const now = new Date();
-    const diffMs = now - d;
-    const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 1) return 'just now';
-    if (diffMin < 60) return `${diffMin}m ago`;
-    if (diffMin < 1440) return `${Math.floor(diffMin / 60)}h ago`;
-    return d.toLocaleDateString();
   };
 
   return (
