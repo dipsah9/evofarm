@@ -1,0 +1,99 @@
+.dna-logo {
+  position: relative;
+  width: var(--size);
+  height: var(--size);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  animation: dna-rotate var(--speed) linear infinite;
+  transform-style: preserve-3d;
+  perspective: 400px;
+}
+
+.dna-rung {
+  position: relative;
+  width: 100%;
+  height: calc(var(--size) / var(--total));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Each rung is offset in phase */
+  animation: dna-phase var(--speed) ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.15s);
+}
+
+.dna-node {
+  position: absolute;
+  width: calc(var(--size) * 0.18);
+  height: calc(var(--size) * 0.18);
+  border-radius: 50%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.dna-node-a {
+  background: var(--color-a);
+  box-shadow: 0 0 6px var(--color-a);
+  left: 0;
+  animation: dna-shift-a var(--speed) ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.15s);
+}
+
+.dna-node-b {
+  background: var(--color-b);
+  box-shadow: 0 0 6px var(--color-b);
+  right: 0;
+  animation: dna-shift-b var(--speed) ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.15s);
+}
+
+/* The bar connecting the two nodes */
+.dna-bar {
+  position: absolute;
+  height: 2px;
+  width: 60%;
+  background: linear-gradient(
+    90deg,
+    var(--color-a),
+    var(--color-b)
+  );
+  opacity: 0.5;
+  animation: dna-bar-pulse var(--speed) ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.15s);
+}
+
+/* ---------- Animations ---------- */
+
+/* Slight overall tilt so it doesn't look flat */
+@keyframes dna-rotate {
+  0%, 100% { transform: rotateY(0deg); }
+  50%      { transform: rotateY(20deg); }
+}
+
+/* The two nodes swap sides as the helix turns */
+@keyframes dna-shift-a {
+  0%, 100% { left: 0; }
+  50%      { left: calc(100% - calc(var(--size) * 0.18)); }
+}
+
+@keyframes dna-shift-b {
+  0%, 100% { right: 0; }
+  50%      { right: calc(100% - calc(var(--size) * 0.18)); }
+}
+
+/* The bar scales as the strands cross */
+@keyframes dna-bar-pulse {
+  0%, 100% { opacity: 0.6; transform: scaleX(1); }
+  50%      { opacity: 0.2; transform: scaleX(0.4); }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .dna-logo,
+  .dna-rung,
+  .dna-node,
+  .dna-bar {
+    animation: none !important;
+  }
+}

@@ -7,6 +7,7 @@ import RegisterPage from './RegisterPage';
 import DashboardPage from './DashboardPage';
 import UserMenu from './UserMenu';
 import './App.css';
+import DnaLogo from './dnaLogo';
 
 function App() {
   return (
@@ -14,8 +15,12 @@ function App() {
       <div className="app-shell">
         <header className="app-header">
           <div className="app-header-left">
-            <span className="app-logo">🧬 EvoFarm</span>
+            <span className="app-logo">
+            <DnaLogo size={22} speed={16} />
+            <span>EvoFarm</span>
             <span className="app-tagline">Neuroevolution-as-a-Service</span>
+            </span>
+           
           </div>
           <UserMenu />
         </header>
