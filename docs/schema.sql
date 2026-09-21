@@ -1,7 +1,19 @@
 -- EvoFarm database schema
 -- Run against Neon with: psql $DATABASE_URL -f docs/schema.sql
 
--- Users table
+-- ---------- Shared functions (must come first) ----------
+
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ---------- Users ----------
+
+-- Drop first if it exists (cascades to dependent FKs)
 DROP TABLE IF EXISTS users CASCADE;
 
 CREATE TABLE users (
@@ -15,14 +27,14 @@ CREATE TABLE users (
 
 CREATE INDEX idx_users_email ON users(email);
 
--- Auto-update updated_at on users
 DROP TRIGGER IF EXISTS users_updated_at ON users;
 CREATE TRIGGER users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 
--- Jobs table (durable history)
+-- ---------- Jobs ----------
+
 CREATE TABLE IF NOT EXISTS jobs (
     id UUID PRIMARY KEY,
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -48,23 +60,14 @@ CREATE INDEX IF NOT EXISTS idx_jobs_status
 CREATE INDEX IF NOT EXISTS idx_jobs_created_at
     ON jobs(created_at DESC);
 
--- Auto-update updated_at
-CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
 DROP TRIGGER IF EXISTS jobs_updated_at ON jobs;
 CREATE TRIGGER jobs_updated_at
     BEFORE UPDATE ON jobs
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 
+-- ---------- Ensure FK exists (idempotent) ----------
 
--- Ensure the FK exists (idempotent)
 DO $$
 BEGIN
     IF NOT EXISTS (
