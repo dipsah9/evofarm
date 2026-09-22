@@ -104,11 +104,16 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
-// buildRouter constructs the HTTP router with all routes and middleware.
-// Shared between main() and integration tests so both exercise the same stack.
 func buildRouter(rateCfg RateLimitConfig) http.Handler {
 	r := mux.NewRouter()
 	r.Use(corsMiddleware)
+
+	// Explicit OPTIONS handler for CORS preflight.
+	// Gorilla mux returns 405 for unmatched OPTIONS unless we
+	// register a route that handles every path.
+	r.PathPrefix("/").Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
 
 	// Public routes
 	r.HandleFunc("/auth/register", registerHandler).Methods("POST")
