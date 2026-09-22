@@ -95,11 +95,21 @@ func main() {
     }
     log.Println("Connected to Redis")
 
-    r := mux.NewRouter()
+    rateCfg := LoadRateLimitConfig()
+	log.Printf("Rate limit: %d requests per %s per IP", rateCfg.MaxRequests, rateCfg.Window)
+
+	r := buildRouter(rateCfg)
+
+	log.Println("API listening on :8080")
+	log.Fatal(http.ListenAndServe(":8080", r))
+}
+
+// buildRouter constructs the HTTP router with all routes and middleware.
+// Shared between main() and integration tests so both exercise the same stack.
+func buildRouter(rateCfg RateLimitConfig) http.Handler {
+	r := mux.NewRouter()
 	r.Use(corsMiddleware)
 
-	rateCfg := LoadRateLimitConfig()
-	log.Printf("Rate limit: %d requests per %s per IP", rateCfg.MaxRequests, rateCfg.Window)
 	// Public routes
 	r.HandleFunc("/auth/register", registerHandler).Methods("POST")
 	r.HandleFunc("/auth/login", loginHandler).Methods("POST")
@@ -112,8 +122,8 @@ func main() {
 	r.HandleFunc("/jobs/{id}", authMiddleware(http.HandlerFunc(getJobStatus)).ServeHTTP).Methods("GET")
 	r.HandleFunc("/jobs", authMiddleware(rateLimitMiddleware(rateCfg)(http.HandlerFunc(submitJob))).ServeHTTP).Methods("POST")
 	r.HandleFunc("/rate-limit-status", authMiddleware(http.HandlerFunc(rateLimitStatusHandler(rateCfg))).ServeHTTP).Methods("GET")
-    log.Println("API listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", corsMiddleware(r)))
+
+	return r
 }
 
 func submitJob(w http.ResponseWriter, r *http.Request) {
