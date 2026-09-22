@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import DnaLogo from './dnaLogo';
 
 function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -36,7 +37,10 @@ function RegisterPage() {
     <div className="auth-layout">
       <div className="auth-hero">
         <div className="auth-hero-inner">
-          <h1 className="auth-hero-logo">🧬 EvoFarm</h1>
+         <div className="auth-hero-logo-wrap">
+        <DnaLogo size={56} speed={18} />
+        <h1 className="auth-hero-logo">EvoFarm</h1>
+        </div>
           <p className="auth-hero-tagline">
             Create an account to submit neuroevolution and constraint
             optimization jobs — and watch them solve in real time.
