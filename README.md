@@ -8,10 +8,7 @@
 
 **[Live demo](https://evofarm.vercel.app/)** · **[API](https://evofarm-api.fly.dev/health)**
 
-EvoFarm is a hybrid optimization platform for running evolutionary and
-constraint-based workloads through one distributed job interface. Users
-submit a problem, the platform routes it to the appropriate solver, and a
-React dashboard reports progress and results as the job executes.
+EvoFarm is a template for running any optimization workload — evolutionary, constraint-based, or otherwise — as a distributed, observable, multi-tenant service.
 
 It demonstrates a modern distributed architecture built from polyglot
 services, a Redis-backed job queue, a pluggable solver layer, and
