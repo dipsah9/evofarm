@@ -15,6 +15,7 @@ function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
+
     try {
       await login(email, password);
       navigate('/');
@@ -31,13 +32,20 @@ function LoginPage() {
       {/* Left panel: what this is */}
       <div className="auth-hero">
         <div className="auth-hero-inner">
-          <div className="auth-hero-logo-wrap">
+
+          {/* <div className="auth-hero-logo-wrap">
             <DnaLogo size={56} speed={18} />
             <h1 className="auth-hero-logo">EvoFarm</h1>
-            </div>
+          </div> */}
+
+          <h2 className="auth-hero-heading">
+            Evolve neural networks.<br />
+            Solve constraint problems.
+          </h2>
+
           <p className="auth-hero-tagline">
-            A distributed platform for evolving neural networks and
-            solving constraint optimization problems.
+            A distributed platform bringing genetic evolution and CP-SAT
+            optimization together behind one API.
           </p>
 
           <ul className="auth-hero-features">
@@ -76,6 +84,7 @@ function LoginPage() {
       <div className="auth-form-panel">
         <div className="auth-card">
           <h2 className="auth-title">Sign in</h2>
+
           <p className="auth-subtitle">
             Welcome back. Enter your credentials to continue.
           </p>
@@ -92,6 +101,7 @@ function LoginPage() {
                 placeholder="you@example.com"
               />
             </div>
+
             <div className="form-group">
               <label>Password</label>
               <input
