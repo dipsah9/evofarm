@@ -8,6 +8,7 @@ import DashboardPage from './DashboardPage';
 import UserMenu from './UserMenu';
 import './App.css';
 import DnaLogo from './dnaLogo';
+import ChatWidget from './ChatWidget';
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <ChatWidget />
       </div>
     </AuthProvider>
   );
