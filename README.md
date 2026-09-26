@@ -57,6 +57,22 @@ and autoscaling remain future work.
 *Evolution optimizing a portfolio allocation to maximize Sharpe ratio.
 Converges to 0.812 in 50 generations — beating brute-force local search (0.789).*
 
+## Ask EvoFarm — AI Documentation Assistant
+
+The dashboard includes a chat widget that answers questions about
+EvoFarm's documentation using Retrieval-Augmented Generation:
+
+- **Retrieval**: pgvector on Neon, indexed from EvoFarm's docs
+- **Embeddings**: Jina AI
+- **Generation**: Groq (openai/gpt-oss-120b)
+- **Auth**: JWT-verified against the shared EvoFarm secret
+- **Live service**: [evofarm-rag.fly.dev](https://evofarm-rag.fly.dev)
+
+![Chat widget](docs/screenshots/dashboard_chat.png)
+
+*Ask questions about the architecture, the solvers, deployment, or
+how to add a new problem. Answers cite their sources.*
+
 ### Job History
 
 Every job is persisted in Postgres. The History tab shows the full
