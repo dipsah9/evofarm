@@ -57,6 +57,18 @@ and autoscaling remain future work.
 *Evolution optimizing a portfolio allocation to maximize Sharpe ratio.
 Converges to 0.812 in 50 generations — beating brute-force local search (0.789).*
 
+### Job History
+
+Every job is persisted in Postgres. The History tab shows the full
+audit trail — click any row to reload the job's fitness chart, evolved
+weights, or schedule.
+
+![History tab](docs/screenshots/dashboard_history.png)
+
+*Postgres-backed history. Jobs survive Redis flushes, worker restarts,
+and redeployments.*
+
+
 ## Ask EvoFarm — AI Documentation Assistant
 
 The dashboard includes a chat widget that answers questions about
@@ -73,16 +85,6 @@ EvoFarm's documentation using Retrieval-Augmented Generation:
 *Ask questions about the architecture, the solvers, deployment, or
 how to add a new problem. Answers cite their sources.*
 
-### Job History
-
-Every job is persisted in Postgres. The History tab shows the full
-audit trail — click any row to reload the job's fitness chart, evolved
-weights, or schedule.
-
-![History tab](docs/screenshots/dashboard_history.png)
-
-*Postgres-backed history. Jobs survive Redis flushes, worker restarts,
-and redeployments.*
 
 ## Authentication
 
