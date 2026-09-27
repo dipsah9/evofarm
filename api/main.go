@@ -120,6 +120,7 @@ func buildRouter(rateCfg RateLimitConfig) http.Handler {
 	r.HandleFunc("/auth/login", loginHandler).Methods("POST")
 	r.HandleFunc("/health", healthCheck).Methods("GET")
 	r.HandleFunc("/problems", listProblems).Methods("GET")
+	r.HandleFunc("/metrics", metricsHandler).Methods("GET")
 
 	// Authenticated routes
 	r.HandleFunc("/auth/me", meHandler).Methods("GET")
@@ -205,6 +206,8 @@ func submitJob(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to queue job", http.StatusInternalServerError)
 		return
 	}
+
+	jobsSubmittedTotal.Inc()
 
 	// Also write to Postgres for durability (fire-and-forget)
 	if db != nil {

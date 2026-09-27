@@ -183,6 +183,8 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Normalize email
 	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+	authRequestsTotal.WithLabelValues("register", "success").Inc()
+	authRequestsTotal.WithLabelValues("register", "failure").Inc()
 
 	// Validate
 	if req.Email == "" || !strings.Contains(req.Email, "@") {
@@ -260,6 +262,9 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "email and password required", http.StatusBadRequest)
 		return
 	}
+
+	authRequestsTotal.WithLabelValues("register", "success").Inc()
+	authRequestsTotal.WithLabelValues("register", "failure").Inc()
 
 	user, err := findUserByEmail(r.Context(), req.Email)
 	if err != nil {
