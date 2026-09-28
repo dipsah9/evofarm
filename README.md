@@ -85,6 +85,23 @@ EvoFarm's documentation using Retrieval-Augmented Generation:
 *Ask questions about the architecture, the solvers, deployment, or
 how to add a new problem. Answers cite their sources.*
 
+## Observability
+
+EvoFarm exposes Prometheus metrics on both the Go API and the RAG
+service. A local Grafana dashboard visualizes:
+
+- **RAG Queries/sec** — throughput of the documentation assistant
+- **RAG HTTP Requests/sec** — traffic by endpoint and status
+- **Median Retrieval Confidence** — quality of RAG answers (0–1)
+- **Total Queries** — lifetime queries processed
+- **Total Jobs** — EvoFarm optimization jobs submitted
+- **Auth Requests/sec** — login and registration traffic
+
+![Observability Dashboard](docs/screenshots/observability.png)
+
+*Metrics scraped by Prometheus every 15s. Dashboard shows live
+traffic from production.*
+
 
 ## Authentication
 
