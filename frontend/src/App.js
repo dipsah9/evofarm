@@ -1,14 +1,14 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './AuthContext';
-import ProtectedRoute from './ProtectedRoute';
-import LoginPage from './LoginPage';
-import RegisterPage from './RegisterPage';
-import DashboardPage from './DashboardPage';
-import UserMenu from './UserMenu';
+import { AuthProvider } from 'contexts/AuthContext';
+import ProtectedRoute from 'routes/ProtectedRoute';
+import LoginPage from 'pages/LoginPage';
+import RegisterPage from 'pages/RegisterPage';
+import DashboardPage from 'pages/DashboardPage';
+import UserMenu from 'components/layout/UserMenu';
 import './App.css';
-import DnaLogo from './dnaLogo';
-import ChatWidget from './ChatWidget';
+import DnaLogo from 'components/brand/DnaLogo';
+import ChatWidget from 'components/chat/ChatWidget';
 
 function App() {
   return (

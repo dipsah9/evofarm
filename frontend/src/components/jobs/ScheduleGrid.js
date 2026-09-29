@@ -13,7 +13,6 @@ function ScheduleGrid({ schedule, shiftNames = ['morning', 'evening', 'night', '
     return <div className="schedule-empty">No schedule available</div>;
   }
 
-  const numNurses = schedule.length;
   const numDays = schedule[0].length;
 
   return (

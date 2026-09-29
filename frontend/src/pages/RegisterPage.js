@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from './AuthContext';
-import DnaLogo from './dnaLogo';
+import { useAuth } from 'contexts/AuthContext';
+import DnaLogo from 'components/brand/DnaLogo';
 
 function RegisterPage() {
   const [email, setEmail] = useState('');

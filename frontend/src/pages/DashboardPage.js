@@ -1,6 +1,5 @@
-import api from './api';
-
 import React, { useState, useEffect } from 'react';
+import api from 'api/client';
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -13,9 +12,9 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import './App.css';
-import JobHistory from './JobHistory';
-import ScheduleGrid from './ScheduleGrid';
+import '../App.css';
+import JobHistory from 'components/jobs/JobHistory';
+import ScheduleGrid from 'components/jobs/ScheduleGrid';
 
 // Register Chart.js components
 ChartJS.register(

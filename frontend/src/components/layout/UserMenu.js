@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth } from 'contexts/AuthContext';
 
 function UserMenu() {
   const { user, logout } = useAuth();
