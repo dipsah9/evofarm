@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth } from 'contexts/AuthContext';
 import './ChatWidget.css';
 
 const RAG_URL = process.env.REACT_APP_RAG_URL || 'https://evofarm-rag.fly.dev';
